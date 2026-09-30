@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="diagram-size" content="1700x1140" />
+    <title>DocuMind ask sequence</title>
+    <link rel="stylesheet" href="diagram.css" />
+    <script src="diagram.js"></script>
+    <style>
+      .actor {
+        width: 214px;
+        height: 76px;
+        align-items: center;
+      }
+      svg.seq {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        overflow: visible;
+      }
+      .msg {
+        position: absolute;
+        z-index: 4;
+        transform: translate(-50%, -100%);
+        padding: 0 6px 4px;
+        font-size: 12.5px;
+        font-weight: 500;
+        white-space: nowrap;
+        color: var(--ink-2);
+      }
+      .msg code {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        padding: 1px 5px;
+        border-radius: 5px;
+        background: color-mix(in srgb, var(--c) 9%, white);
+        color: color-mix(in srgb, var(--c) 85%, #000);
+      }
+      .msg.ret {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .msg .step-dot {
+        margin-right: 6px;
+        vertical-align: -3px;
+      }
+      .phase {
+        position: absolute;
+        z-index: 1;
+        left: 44px;
+        width: 1290px;
+        border-radius: 14px;
+        background: color-mix(in srgb, var(--c) 6%, transparent);
+        border: 1px solid color-mix(in srgb, var(--c) 18%, transparent);
+      }
+      .phase span {
+        position: absolute;
+        left: 12px;
+        top: 8px;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--c);
+      }
+      .panel {
+        position: absolute;
+        z-index: 3;
+        left: 1392px;
+        width: 252px;
+        padding: 18px;
+        border-radius: 18px;
+        background: #fff;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 28px -12px rgba(15, 23, 42, 0.22);
+      }
+      .panel h3 {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin: 0 0 12px;
+        font-size: 15px;
+      }
+      .panel ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+      }
+      .panel li {
+        display: flex;
+        gap: 9px;
+        font-size: 12.5px;
+        line-height: 1.45;
+        color: var(--ink-2);
+      }
+      .panel li i {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        margin-top: 1px;
+        color: var(--c);
+      }
+      .panel li i svg {
+        width: 18px;
+        height: 18px;
+      }
+      .bubble {
+        margin-top: 8px;
+        padding: 9px 12px;
+        border-radius: 12px;
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+      .bubble.user {
+        margin-left: 30px;
+        color: #fff;
+        background: var(--indigo);
+        border-bottom-right-radius: 4px;
+      }
+      .bubble.bot {
+        margin-right: 0;
+        background: #f1f5f9;
+        border-bottom-left-radius: 4px;
+      }
+      .cite {
+        white-space: nowrap;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        padding: 0 5px;
+        border-radius: 5px;
+        color: var(--indigo);
+        background: #e0e7ff;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; Ask path</div>
+      <h1>One question: one vector search, one streamed answer</h1>
+      <p class="subtitle">
+        <span class="mono">POST /api/ask</span> retrieves only from the signed-in user&rsquo;s document, grounds the
+        answer in five page-tagged chunks, and saves every answer with the evidence behind it.
+      </p>
+    </header>
+
+    <div class="node actor accent" id="a0" style="--c: var(--indigo); left: 53px; top: 214px">
+      <span class="badge solid" data-icon="browser"></span>
+      <div class="body"><div class="title">Browser</div><div class="sub">useChat</div></div>
+    </div>
+    <div class="node actor accent" id="a1" style="--c: var(--ink); left: 333px; top: 214px">
+      <span class="badge solid" data-icon="server"></span>
+      <div class="body"><div class="title">/api/ask</div><div class="sub">route handler</div></div>
+    </div>
+    <div class="node actor accent" id="a2" style="--c: var(--violet); left: 613px; top: 214px">
+      <span class="badge solid" data-icon="code"></span>
+      <div class="body"><div class="title">src/lib/rag</div><div class="sub">prompt &middot; citations</div></div>
+    </div>
+    <div class="node actor accent" id="a3" style="--c: var(--green); left: 893px; top: 214px">
+      <span class="badge solid" data-icon="database"></span>
+      <div class="body"><div class="title">MongoDB Atlas</div><div class="sub">data + vector index</div></div>
+    </div>
+    <div class="node actor accent" id="a4" style="--c: var(--blue); left: 1143px; top: 214px">
+      <span class="badge solid" data-icon="sparkles"></span>
+      <div class="body"><div class="title">Gemini API</div><div class="sub">via Vercel AI SDK</div></div>
+    </div>
+
+    <div class="phase" style="--c: var(--slate); top: 330px; height: 140px"><span>Guard</span></div>
+    <div class="phase" style="--c: var(--green); top: 480px; height: 170px"><span>Retrieve</span></div>
+    <div class="phase" style="--c: var(--blue); top: 660px; height: 200px"><span>Generate</span></div>
+    <div class="phase" style="--c: var(--violet); top: 870px; height: 150px"><span>Record</span></div>
+
+    <div class="panel" style="--c: var(--teal); top: 214px">
+      <h3><span class="badge" style="--c: var(--teal); width: 32px; height: 32px" data-icon="shield"></span>Guardrails</h3>
+      <ul>
+        <li><i data-icon="lock"></i><span>Session required; <b>userId</b> comes from the cookie, never the request body.</span></li>
+        <li><i data-icon="search"></i><span>Vector search is pre-filtered by <b>userId</b> and <b>documentId</b> inside Atlas.</span></li>
+        <li><i data-icon="file"></i><span>Chunks are wrapped in <span class="mono">&lt;source page="N"&gt;</span> tags and treated as data, not instructions.</span></li>
+        <li><i data-icon="bookmark"></i><span>Citations are kept only for pages that were actually retrieved.</span></li>
+        <li><i data-icon="gauge"></i><span>50 questions per user per day; every answer logs latency and tokens.</span></li>
+      </ul>
+    </div>
+
+    <div class="panel" style="--c: var(--indigo); top: 764px">
+      <h3><span class="badge" style="--c: var(--indigo); width: 32px; height: 32px" data-icon="message"></span>Grounded or refused</h3>
+      <div class="bubble user">How long is the warranty?</div>
+      <div class="bubble bot">Two years from purchase <span class="cite">p. 14</span></div>
+      <div class="bubble user">Who founded the company?</div>
+      <div class="bubble bot">That isn&rsquo;t in this document.</div>
+    </div>
+
+    <div class="footer">github.com/balakumaran-ks/DocuMind</div>
+
+    <script>
+      // Lifeline centres match the actor cards above.
+      const X = [160, 440, 720, 1000, 1250];
+      const C = { indigo: "#4f46e5", ink: "#0f172a", violet: "#7c3aed", green: "#00875a", blue: "#2563eb", ret: "#94a3b8" };
+      const TOP = 290;
+      const BOTTOM = 1050;
+
+      // [from, to, html, color, step] — step null means a dashed return message.
+      const M = [
+        [0, 1, "POST <code>/api/ask</code> { question }", C.indigo, 1, 398],
+        [1, 3, "findOne <code>documents</code> { _id, userId } &middot; count today&rsquo;s questions", C.green, 2, 432],
+        [3, 1, "document owned &check; &middot; 12 / 50 today", C.ret, null, 458],
+        [1, 4, "embed question &middot; <code>gemini-embedding-2</code>", C.blue, 3, 540],
+        [4, 1, "vector[768]", C.ret, null, 566],
+        [1, 3, "<code>$vectorSearch</code> filter { userId, documentId } &middot; limit 5", C.green, 4, 610],
+        [3, 1, "5 chunks &middot; text, pageNumber, score", C.ret, null, 636],
+        [1, 2, "<code>buildPrompt</code>(question, chunks, history)", C.violet, 5, 710],
+        [2, 1, "rules + &lt;source page=N&gt; &times; 5", C.ret, null, 736],
+        [1, 4, "<code>streamText</code>(prompt) &middot; gemini-3.5-flash", C.blue, 6, 782],
+        [4, 1, "token stream", C.ret, null, 808],
+        [1, 0, "streamed answer with [p. N] markers", C.indigo, null, 834],
+        [1, 2, "onFinish &rarr; <code>parseCitations</code>(answer, chunks)", C.violet, 7, 920],
+        [2, 1, "[p. 12, p. 14] &middot; unretrieved pages dropped", C.ret, null, 946],
+        [1, 3, "insert <code>messages</code> &middot; citations, latency, tokens, chunk ids", C.green, 8, 996],
+      ];
+
+      const NS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("class", "seq");
+      svg.innerHTML = `<defs>
+        ${Object.entries(C)
+          .map(
+            ([k, v]) =>
+              `<marker id="m-${k}" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="11" markerHeight="11" markerUnits="userSpaceOnUse" orient="auto">
+                 <path d="M1.5 1.5 L10.5 6 L1.5 10.5 ${k === "ret" ? "" : "L4 6 Z"}" fill="${k === "ret" ? "none" : v}" stroke="${v}" stroke-width="${k === "ret" ? 1.6 : 1}" stroke-linejoin="round"/>
+               </marker>`,
+          )
+          .join("")}
+      </defs>`;
+      const key = (color) => Object.keys(C).find((k) => C[k] === color);
+
+      // Lifelines and the route's activation bar.
+      X.forEach((x) => {
+        svg.insertAdjacentHTML("beforeend", `<line x1="${x}" y1="${TOP}" x2="${x}" y2="${BOTTOM}" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 6"/>`);
+      });
+      svg.insertAdjacentHTML("beforeend", `<rect x="${X[1] - 7}" y="378" width="14" height="624" rx="5" fill="#fff" stroke="#0f172a" stroke-width="1.5"/>`);
+
+      for (const [from, to, html, color, step, y] of M) {
+        const dir = Math.sign(X[to] - X[from]);
+        const x1 = X[from] + (from === 1 ? 7 * dir : 0);
+        const x2 = X[to] - (to === 1 ? 7 * dir : 0) - 3 * dir;
+        const ret = color === C.ret || step === null;
+        svg.insertAdjacentHTML(
+          "beforeend",
+          `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${color}" stroke-width="${ret ? 1.6 : 2}" ${ret ? 'stroke-dasharray="6 5"' : ""} marker-end="url(#m-${key(color)})"/>`,
+        );
+        const label = document.createElement("div");
+        label.className = "msg" + (color === C.ret ? " ret" : "");
+        label.style.setProperty("--c", color);
+        // Calls read from their origin (step number first); returns sit centred on the arrow.
+        const forward = !ret || step;
+        label.style.left = `${forward ? Math.min(x1, x2) + 10 : (x1 + x2) / 2}px`;
+        if (forward) label.style.transform = "translate(0, -100%)";
+        label.style.top = `${y - 2}px`;
+        label.innerHTML = (step ? `<span class="step-dot" style="--c:${color}">${step}</span>` : "") + html;
+        document.body.appendChild(label);
+      }
+      document.body.appendChild(svg);
+    </script>
+  </body>
+</html>

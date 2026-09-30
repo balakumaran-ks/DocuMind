@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="diagram-size" content="1700x960" />
+    <title>DocuMind ingest pipeline</title>
+    <link rel="stylesheet" href="diagram.css" />
+    <script src="diagram.js"></script>
+    <style>
+      .step-card {
+        flex-direction: column;
+        gap: 0;
+        width: 350px;
+        height: 214px;
+        padding: 16px 18px;
+      }
+      .step-head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .num {
+        position: absolute;
+        top: -12px;
+        left: -12px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 800;
+        color: #fff;
+        background: var(--c);
+        box-shadow: 0 0 0 4px var(--bg);
+      }
+      .viz {
+        align-self: stretch;
+        margin-top: 12px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 6px;
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .chip {
+        font-family: var(--mono);
+        font-size: 11px;
+        padding: 3px 7px;
+        border-radius: 7px;
+        white-space: nowrap;
+        color: color-mix(in srgb, var(--k, var(--c)) 85%, #000);
+        background: color-mix(in srgb, var(--k, var(--c)) 10%, white);
+        border: 1px solid color-mix(in srgb, var(--k, var(--c)) 22%, white);
+      }
+      .chip.err {
+        --k: var(--rose);
+      }
+      .chip.ok {
+        --k: #059669;
+      }
+      .chip.warn {
+        --k: var(--amber);
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+      }
+      .page-line {
+        display: grid;
+        grid-template-columns: 34px 1fr 64px;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--ink-2);
+      }
+      .bar {
+        height: 8px;
+        border-radius: 4px;
+        background: #e2e8f0;
+        overflow: hidden;
+      }
+      .bar i {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, #14b8a6, #0d9488);
+        border-radius: 4px;
+      }
+      .chunks {
+        position: relative;
+        height: 80px;
+        margin-top: 2px;
+      }
+      .chunks .page {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 14px;
+        border-radius: 5px;
+        background: repeating-linear-gradient(90deg, #cbd5e1 0 6px, #e2e8f0 6px 9px);
+      }
+      .chunks .c {
+        position: absolute;
+        height: 17px;
+        border-radius: 5px;
+        border: 2px solid;
+        font-family: var(--mono);
+        font-size: 10px;
+        line-height: 13px;
+        padding-left: 5px;
+        background: #fff;
+      }
+      .chunks .ov {
+        position: absolute;
+        top: 20px;
+        height: 58px;
+        background: repeating-linear-gradient(135deg, rgba(13, 148, 136, 0.18) 0 4px, transparent 4px 8px);
+        border-radius: 4px;
+      }
+      .vector {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        padding: 8px 10px;
+        border-radius: 9px;
+        background: #0f172a;
+        color: #93c5fd;
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .vector b {
+        color: #f9a8d4;
+        font-weight: 500;
+      }
+      .note {
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+      .strip {
+        position: absolute;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 14px 20px;
+        border-radius: 16px;
+        border: 1.5px dashed #94a3b8;
+        background: rgba(255, 255, 255, 0.8);
+        font-size: 14px;
+        color: var(--ink-2);
+      }
+      .strip .badge {
+        --c: var(--rose);
+      }
+      .strip b {
+        color: var(--ink);
+      }
+      .lane {
+        position: absolute;
+        z-index: 3;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; Ingest path</div>
+      <h1>From PDF to searchable, page-cited chunks</h1>
+      <p class="subtitle">
+        Runs once per upload inside <span class="mono">POST /api/documents</span> in the MVP. Every stored row carries
+        <span class="mono">userId</span>, and every chunk carries exactly one page number.
+      </p>
+    </header>
+
+    <!-- Row 1 -->
+    <div class="node step-card" id="s1" style="--c: var(--indigo); left: 56px; top: 232px">
+      <span class="num">1</span>
+      <div class="step-head">
+        <span class="badge" data-icon="upload"></span>
+        <div><div class="title">Upload</div><div class="sub">Browser sends multipart/form-data</div></div>
+      </div>
+      <div class="viz">
+        <div class="row"><span class="chip">handbook.pdf</span><span class="chip">3.2 MB</span><span class="chip">application/pdf</span></div>
+        <div class="note">The browser checks size and type for fast feedback, but nothing it says is trusted.</div>
+      </div>
+    </div>
+
+    <div class="node step-card" id="s2" style="--c: var(--rose); left: 482px; top: 232px">
+      <span class="num">2</span>
+      <div class="step-head">
+        <span class="badge" data-icon="shield"></span>
+        <div><div class="title">Validate on the server</div><div class="sub">Reject early with a clear JSON error</div></div>
+      </div>
+      <div class="viz">
+        <div class="grid2">
+          <span class="chip err">401 no session</span>
+          <span class="chip err">415 not %PDF-</span>
+          <span class="chip err">413 &gt; 10 MB</span>
+          <span class="chip err">422 &gt; 50 pages</span>
+          <span class="chip err">409 &gt; 5 documents</span>
+          <span class="chip ok">&check; continue</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="node step-card" id="s3" style="--c: var(--teal); left: 908px; top: 232px">
+      <span class="num">3</span>
+      <div class="step-head">
+        <span class="badge" data-icon="file"></span>
+        <div><div class="title">Extract text per page</div><div class="sub">pdfjs-dist &middot; whitespace normalised</div></div>
+      </div>
+      <div class="viz">
+        <div class="page-line"><span>p. 1</span><span class="bar"><i style="width: 72%"></i></span><span>1,842 ch</span></div>
+        <div class="page-line"><span>p. 2</span><span class="bar"><i style="width: 88%"></i></span><span>2,210 ch</span></div>
+        <div class="page-line"><span>p. 3</span><span class="bar"><i style="width: 0"></i></span><span style="color: var(--amber)">empty &#9888;</span></div>
+        <div class="page-line"><span>p. 4</span><span class="bar"><i style="width: 54%"></i></span><span>1,390 ch</span></div>
+      </div>
+    </div>
+
+    <div class="node step-card" id="s4" style="--c: var(--teal); left: 1334px; top: 232px; width: 310px">
+      <span class="num">4</span>
+      <div class="step-head">
+        <span class="badge" data-icon="scissors"></span>
+        <div><div class="title">Chunk each page</div><div class="sub">~1,200 chars, 200 overlap, never across pages</div></div>
+      </div>
+      <div class="viz">
+        <div class="chunks">
+          <div class="page"></div>
+          <div class="ov" style="left: 34%; width: 8%"></div>
+          <div class="ov" style="left: 66%; width: 8%"></div>
+          <div class="c" style="top: 22px; left: 0; width: 42%; border-color: #0d9488; color: #0f766e">c0</div>
+          <div class="c" style="top: 40px; left: 34%; width: 40%; border-color: #6366f1; color: #4338ca">c1</div>
+          <div class="c" style="top: 58px; left: 66%; width: 34%; border-color: #d97706; color: #b45309">c2</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2 (right to left) -->
+    <div class="node step-card" id="s5" style="--c: var(--violet); left: 1334px; top: 560px; width: 310px">
+      <span class="num">5</span>
+      <div class="step-head">
+        <span class="badge" data-icon="hash"></span>
+        <div><div class="title">Hash and de-duplicate</div><div class="sub">SHA-256 of text + model name</div></div>
+      </div>
+      <div class="viz">
+        <div class="row"><span class="chip">c0 &rarr; a3f9&hellip;e1</span><span class="chip warn">seen &middot; reuse</span></div>
+        <div class="row"><span class="chip">c1 &rarr; 7b20&hellip;4c</span><span class="chip ok">new</span></div>
+        <div class="row"><span class="chip">c2 &rarr; d914&hellip;0a</span><span class="chip ok">new</span></div>
+      </div>
+    </div>
+
+    <div class="node step-card" id="s6" style="--c: var(--blue); left: 908px; top: 560px">
+      <span class="num">6</span>
+      <div class="step-head">
+        <span class="badge" data-icon="sparkles"></span>
+        <div><div class="title">Embed new chunks</div><div class="sub">AI SDK embedMany &middot; batched</div></div>
+      </div>
+      <div class="viz">
+        <div class="vector">[<b>0.021</b>, -0.113, <b>0.087</b>, -0.061, &hellip; &times;768]</div>
+        <div class="row"><span class="chip">gemini-embedding-2</span><span class="chip">768 dims</span><span class="chip">cosine</span></div>
+      </div>
+    </div>
+
+    <div class="node step-card" id="s7" style="--c: var(--green); left: 482px; top: 560px">
+      <span class="num">7</span>
+      <div class="step-head">
+        <span class="badge" data-icon="database"></span>
+        <div><div class="title">Store in MongoDB Atlas</div><div class="sub">One write per collection, all with userId</div></div>
+      </div>
+      <div class="viz">
+        <div class="grid2">
+          <span class="chip">documents &times;1</span>
+          <span class="chip">pages &times;42</span>
+          <span class="chip">chunks &times;118</span>
+          <span class="chip">+ embedding[768]</span>
+        </div>
+        <div class="note">Indexed by the <span class="mono">chunks_vector</span> Atlas Vector Search index.</div>
+      </div>
+    </div>
+
+    <div class="node step-card accent" id="s8" style="--c: #059669; left: 56px; top: 560px">
+      <span class="num">8</span>
+      <div class="step-head">
+        <span class="badge solid" data-icon="check"></span>
+        <div><div class="title">Ready to ask</div><div class="sub">status: processing &rarr; ready</div></div>
+      </div>
+      <div class="viz">
+        <div class="row"><span class="chip ok">201 Created</span></div>
+        <div class="chip" style="white-space: normal; line-height: 1.5">{ documentId, pageCount: 42, emptyPages: [3] }</div>
+        <div class="note">On any error: status <span class="mono">failed</span> + message, and the UI offers a retry.</div>
+      </div>
+    </div>
+
+    <div class="strip" style="left: 56px; top: 830px; width: 1588px">
+      <span class="badge" data-icon="zap"></span>
+      <div>
+        <b>V1 (Week 3):</b> the route returns <span class="mono">202 Accepted</span> after step 2; steps 3&ndash;8 run in a
+        BullMQ worker on Upstash Redis with retries, and the UI shows a progress bar.
+      </div>
+    </div>
+
+    <div class="footer">github.com/balakumaran-ks/DocuMind</div>
+
+    <script>
+      const c = "#0d9488";
+      edge("#s1", "#s2", { color: c });
+      edge("#s2", "#s3", { color: c, label: "valid PDF" });
+      edge("#s3", "#s4", { color: c, label: "pages[]" });
+      edge("#s4", "#s5", { color: c, from: "b", to: "t", label: "chunks[]" });
+      edge("#s5", "#s6", { color: c, from: "l", to: "r", label: "new only" });
+      edge("#s6", "#s7", { color: c, from: "l", to: "r", label: "vectors" });
+      edge("#s7", "#s8", { color: c, from: "l", to: "r" });
+    </script>
+  </body>
+</html>
