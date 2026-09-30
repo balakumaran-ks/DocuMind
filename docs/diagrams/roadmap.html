@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="diagram-size" content="1700x900" />
+    <title>DocuMind roadmap</title>
+    <link rel="stylesheet" href="diagram.css" />
+    <script src="diagram.js"></script>
+    <style>
+      .axis {
+        position: absolute;
+        z-index: 2;
+        left: 56px;
+        top: 236px;
+        width: 1588px;
+        height: 30px;
+        display: grid;
+        grid-template-columns: repeat(6, 1fr);
+      }
+      .axis div {
+        border-left: 1px dashed #cbd5e1;
+        padding-left: 10px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .bar {
+        position: absolute;
+        z-index: 3;
+        top: 276px;
+        height: 40px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0 14px;
+        font-size: 13.5px;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(90deg, var(--c), color-mix(in srgb, var(--c) 75%, #000));
+        box-shadow: 0 8px 18px -10px var(--c);
+        white-space: nowrap;
+        overflow: hidden;
+      }
+      .bar svg {
+        width: 16px;
+        height: 16px;
+        flex: none;
+      }
+      .gate {
+        position: absolute;
+        z-index: 5;
+        top: 348px;
+        transform: translateX(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+      }
+      .gate .diamond {
+        width: 30px;
+        height: 30px;
+        transform: rotate(45deg);
+        border-radius: 7px;
+        background: #0f172a;
+        box-shadow: 0 0 0 5px var(--bg), 0 6px 14px -6px #0f172a;
+        display: grid;
+        place-items: center;
+      }
+      .gate .diamond b {
+        transform: rotate(-45deg);
+        color: #fff;
+        font-size: 12px;
+      }
+      .gate .glabel {
+        font-size: 11.5px;
+        font-weight: 700;
+        color: var(--ink);
+        text-align: center;
+        line-height: 1.3;
+        white-space: nowrap;
+      }
+      .gate .glabel small {
+        display: block;
+        font-weight: 500;
+        color: var(--muted);
+      }
+      .rail {
+        position: absolute;
+        z-index: 2;
+        left: 56px;
+        top: 362px;
+        width: 1588px;
+        height: 3px;
+        border-radius: 2px;
+        background: linear-gradient(90deg, #10b981 0 7%, #cbd5e1 7% 100%);
+      }
+      .phase {
+        position: absolute;
+        z-index: 3;
+        top: 470px;
+        width: 250px;
+        height: 310px;
+        flex-direction: column;
+        gap: 0;
+      }
+      .phase .wk {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--c);
+      }
+      .phase .title {
+        margin-top: 4px;
+        font-size: 17px;
+      }
+      .phase ul {
+        margin: 12px 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .phase li {
+        display: flex;
+        gap: 8px;
+        font-size: 12.5px;
+        line-height: 1.4;
+        color: var(--ink-2);
+      }
+      .phase li::before {
+        content: "";
+        flex: none;
+        width: 13px;
+        height: 13px;
+        margin-top: 2px;
+        border-radius: 4px;
+        border: 1.5px solid color-mix(in srgb, var(--c) 55%, white);
+      }
+      .phase li.done::before {
+        border-color: #10b981;
+        background: #10b981 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / 10px no-repeat;
+      }
+      .hand {
+        font-size: 10px;
+        font-weight: 700;
+        padding: 0 5px;
+        border-radius: 4px;
+        color: #9a3412;
+        background: #ffedd5;
+        white-space: nowrap;
+      }
+      .status {
+        position: absolute;
+        right: 14px;
+        top: 14px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        padding: 2px 8px;
+        border-radius: 999px;
+      }
+      .status.done {
+        color: #047857;
+        background: #d1fae5;
+      }
+      .status.next {
+        color: #3730a3;
+        background: #e0e7ff;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; Build plan</div>
+      <h1>Six phases in six weeks, four gates</h1>
+      <p class="subtitle">
+        About two hours a day. Each gate must pass before the next phase starts; if the MVP gate slips, V1 scope is cut,
+        not practice time.
+      </p>
+    </header>
+
+    <div class="axis"><div>Week 1</div><div>Week 2</div><div>Week 3</div><div>Week 4</div><div>Week 5</div><div>Week 6</div></div>
+
+    <!-- one week = 264.67px starting at x=56 -->
+    <div class="bar" style="--c: #10b981; left: 56px; width: 76px; padding: 0 9px; gap: 5px; font-size: 12px"><span data-icon="check"></span>Setup</div>
+    <div class="bar" style="--c: var(--indigo); left: 138px; width: 441px"><span data-icon="rocket"></span>MVP: upload, ask, cite, refuse</div>
+    <div class="bar" style="--c: var(--teal); left: 585px; width: 259px"><span data-icon="zap"></span>V1 features</div>
+    <div class="bar" style="--c: var(--blue); left: 850px; width: 259px"><span data-icon="target"></span>Retrieval quality</div>
+    <div class="bar" style="--c: var(--rose); left: 1115px; width: 259px"><span data-icon="shield"></span>Hardening</div>
+    <div class="bar" style="--c: var(--amber); left: 1380px; width: 264px"><span data-icon="flag"></span>Showcase</div>
+
+    <div class="rail"></div>
+    <div class="gate" style="left: 135px"><div class="diamond" style="background: #10b981"><b>1</b></div><div class="glabel">Setup gate<small>CI green &check;</small></div></div>
+    <div class="gate" style="left: 582px"><div class="diamond"><b>2</b></div><div class="glabel">MVP gate<small>live demo + 15 evals</small></div></div>
+    <div class="gate" style="left: 1112px"><div class="diamond"><b>3</b></div><div class="glabel">Quality gate<small>hit@5 &ge; 85%</small></div></div>
+    <div class="gate" style="left: 1377px"><div class="diamond"><b>4</b></div><div class="glabel">Ship gate<small>E2E + security pass</small></div></div>
+
+    <div class="node phase accent" style="--c: #10b981; left: 56px">
+      <span class="status done">DONE</span>
+      <div class="wk">Week 1 &middot; days 1&ndash;2</div>
+      <div class="title">Setup</div>
+      <ul>
+        <li class="done">PRD, architecture, ADRs, diagrams</li>
+        <li class="done">Next.js + TS + Tailwind + Vitest</li>
+        <li class="done">AGENTS.md, task files, prompts</li>
+        <li class="done">CI: lint, typecheck, test, build</li>
+        <li>Atlas cluster + Gemini key</li>
+      </ul>
+    </div>
+    <div class="node phase accent" style="--c: var(--indigo); left: 323.6px">
+      <span class="status next">NEXT</span>
+      <div class="wk">Weeks 1&ndash;2</div>
+      <div class="title">MVP</div>
+      <ul>
+        <li>Upload + per-page extraction</li>
+        <li>Chunker with overlap <span class="hand">BY HAND</span></li>
+        <li>Embed + vector index (userId)</li>
+        <li>Ask route, prompt with page tags <span class="hand">BY HAND</span></li>
+        <li>Chat UI, citations, sign-in, history</li>
+        <li>15 evals <span class="hand">BY HAND</span>, deploy</li>
+      </ul>
+    </div>
+    <div class="node phase" style="--c: var(--teal); left: 591.2px">
+      <div class="wk">Week 3</div>
+      <div class="title">V1 features</div>
+      <ul>
+        <li>Workspaces: ask across documents</li>
+        <li>BullMQ + Upstash worker, retries, progress bar</li>
+        <li>Thumbs up/down on answers</li>
+      </ul>
+    </div>
+    <div class="node phase" style="--c: var(--blue); left: 858.8px">
+      <div class="wk">Week 4</div>
+      <div class="title">Retrieval quality</div>
+      <ul>
+        <li>30&ndash;50 eval questions, baseline</li>
+        <li>2&ndash;3 chunk sizes, keep best hit@5</li>
+        <li>Hybrid search + reciprocal rank fusion</li>
+        <li>Rerank top 20 &rarr; 5 if evals improve</li>
+        <li>One ADR per change, with numbers</li>
+      </ul>
+    </div>
+    <div class="node phase" style="--c: var(--rose); left: 1126.4px">
+      <div class="wk">Week 5</div>
+      <div class="title">Hardening</div>
+      <ul>
+        <li>Playwright main-flow test</li>
+        <li>Integration tests for both routes</li>
+        <li>Per-user caps, file checks, injection guard</li>
+        <li>Query logging + /admin stats</li>
+      </ul>
+    </div>
+    <div class="node phase" style="--c: var(--amber); left: 1394px">
+      <div class="wk">Week 6</div>
+      <div class="title">Showcase</div>
+      <ul>
+        <li>README, demo GIF, 2-minute video</li>
+        <li>Resume + LinkedIn with real numbers</li>
+        <li>Explain the system in 5 minutes, twice</li>
+      </ul>
+    </div>
+
+    <div class="footer">github.com/balakumaran-ks/DocuMind</div>
+  </body>
+</html>

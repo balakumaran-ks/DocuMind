@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="diagram-size" content="1700x920" />
+    <title>DocuMind deployment and CI</title>
+    <link rel="stylesheet" href="diagram.css" />
+    <script src="diagram.js"></script>
+    <style>
+      .card {
+        width: 300px;
+      }
+      .list {
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        font-size: 12.5px;
+        color: var(--ink-2);
+      }
+      .list li::before {
+        content: "";
+        display: inline-block;
+        width: 6px;
+        height: 6px;
+        margin-right: 8px;
+        border-radius: 2px;
+        background: var(--c);
+        vertical-align: 2px;
+      }
+      .ci .title {
+        font-size: 14px;
+      }
+      .ci .cmd {
+        margin-top: 3px;
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .pass {
+        margin-left: auto;
+        align-self: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        color: #fff;
+        background: #10b981;
+        font-size: 13px;
+        font-weight: 700;
+      }
+      .free {
+        position: absolute;
+        right: 12px;
+        top: 12px;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        padding: 2px 7px;
+        border-radius: 999px;
+        color: #047857;
+        background: #d1fae5;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; Delivery</div>
+      <h1>Every change goes through CI; everything runs on free tiers</h1>
+      <p class="subtitle">
+        A pull request cannot merge until lint, typecheck, tests and the production build pass. Vercel deploys a preview
+        per pull request and production from <span class="mono">main</span>.
+      </p>
+    </header>
+
+    <div class="node accent card" id="dev" style="--c: var(--indigo); left: 56px; top: 250px; height: 196px">
+      <span class="badge solid" data-icon="code"></span>
+      <div class="body">
+        <div class="title">Local development</div>
+        <div class="sub">One task file per branch</div>
+        <ul class="list">
+          <li>Builder agent drafts, tests first</li>
+          <li>Second model reviews the diff</li>
+          <li><span class="mono">npm run check</span> before push</li>
+          <li>Secrets only in <span class="mono">.env.local</span></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="node accent card" id="gh" style="--c: var(--ink); left: 420px; top: 250px; height: 196px">
+      <span class="badge solid" data-icon="branch"></span>
+      <div class="body">
+        <div class="title">GitHub pull request</div>
+        <div class="sub">balakumaran-ks/DocuMind</div>
+        <ul class="list">
+          <li>Template with explain-back section</li>
+          <li>Under ~300 changed lines</li>
+          <li>Eval results for retrieval changes</li>
+          <li>Dependabot: weekly npm, monthly Actions</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="group" id="ci" style="--c: var(--violet); left: 800px; top: 222px; width: 400px; height: 424px">
+      <span class="group-label"><span data-icon="activity"></span>GitHub Actions &middot; ci.yml</span>
+    </div>
+    <div class="node compact ci" id="c1" style="--c: var(--violet); left: 824px; top: 262px; width: 352px; height: 72px">
+      <span class="badge" data-icon="eye"></span>
+      <div class="body"><div class="title">Lint</div><div class="cmd">eslint --max-warnings=0</div></div>
+      <span class="pass">&check;</span>
+    </div>
+    <div class="node compact ci" id="c2" style="--c: var(--violet); left: 824px; top: 356px; width: 352px; height: 72px">
+      <span class="badge" data-icon="code"></span>
+      <div class="body"><div class="title">Typecheck</div><div class="cmd">next typegen &amp;&amp; tsc --noEmit</div></div>
+      <span class="pass">&check;</span>
+    </div>
+    <div class="node compact ci" id="c3" style="--c: var(--violet); left: 824px; top: 450px; width: 352px; height: 72px">
+      <span class="badge" data-icon="flask"></span>
+      <div class="body"><div class="title">Unit tests + coverage</div><div class="cmd">vitest run --coverage</div></div>
+      <span class="pass">&check;</span>
+    </div>
+    <div class="node compact ci" id="c4" style="--c: var(--violet); left: 824px; top: 544px; width: 352px; height: 72px">
+      <span class="badge" data-icon="layers"></span>
+      <div class="body"><div class="title">Production build</div><div class="cmd">next build</div></div>
+      <span class="pass">&check;</span>
+    </div>
+
+    <div class="node accent" id="vercel" style="--c: var(--ink); left: 1284px; top: 250px; width: 360px; height: 196px">
+      <span class="badge solid" data-icon="cloud"></span>
+      <div class="body">
+        <div class="title">Vercel (Hobby)</div>
+        <div class="sub">Next.js UI + route handlers</div>
+        <ul class="list" style="--c: var(--ink)">
+          <li>Preview URL for every pull request</li>
+          <li>Production deploy on merge to main</li>
+          <li>Env vars set in the Vercel dashboard</li>
+          <li>Ingestion capped at 50 pages per request</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="node accent" id="atlas" style="--c: var(--green); left: 420px; top: 716px; width: 290px; height: 104px">
+      <span class="free">FREE</span>
+      <span class="badge solid" data-icon="database"></span>
+      <div class="body"><div class="title">MongoDB Atlas M0</div><div class="sub">Data + Vector Search index</div></div>
+    </div>
+    <div class="node accent" id="gemini" style="--c: var(--blue); left: 730px; top: 716px; width: 290px; height: 104px">
+      <span class="free">FREE</span>
+      <span class="badge solid" data-icon="sparkles"></span>
+      <div class="body"><div class="title">Gemini API</div><div class="sub">Embeddings + answers, via AI SDK</div></div>
+    </div>
+    <div class="node accent" id="oauth" style="--c: var(--amber); left: 1040px; top: 716px; width: 290px; height: 104px">
+      <span class="free">FREE</span>
+      <span class="badge solid" data-icon="key"></span>
+      <div class="body"><div class="title">Google OAuth</div><div class="sub">Auth.js sign-in</div></div>
+    </div>
+    <div class="node dashed" id="v1" style="--c: var(--rose); left: 1350px; top: 716px; width: 294px; height: 104px">
+      <span class="badge" data-icon="zap"></span>
+      <div class="body"><div class="title">V1: Upstash + worker</div><div class="sub">BullMQ queue on Upstash Redis; worker on a free container host</div></div>
+    </div>
+
+    <div class="node compact" id="secrets" style="--c: var(--rose); left: 56px; top: 520px; width: 300px">
+      <span class="badge" data-icon="lock"></span>
+      <div class="body">
+        <div class="title">Secrets never in git</div>
+        <div class="sub"><span class="mono">.env*</span> ignored since the first commit; <span class="mono">.env.example</span> lists names only.</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span style="--c: #0f172a"><i></i>Code flow</span>
+      <span style="--c: #64748b"><i></i>Runtime calls</span>
+      <span style="--c: #94a3b8"><i class="dash"></i>Planned for V1</span>
+    </div>
+    <div class="footer">github.com/balakumaran-ks/DocuMind</div>
+
+    <script>
+      const ink = "#0f172a", violet = "#7c3aed", slate = "#64748b", grey = "#94a3b8";
+      edge("#dev", "#gh", { color: ink, label: "git push" });
+      edge("#gh", "#c1", { color: ink, toAt: 0.5, fromAt: (298 - 250) / 196, label: "on: pull_request", labelAt: 0.45 });
+      edge("#c1", "#c2", { color: violet, from: "b", to: "t" });
+      edge("#c2", "#c3", { color: violet, from: "b", to: "t" });
+      edge("#c3", "#c4", { color: violet, from: "b", to: "t" });
+      edge("#c4", "#vercel", { color: ink, from: "r", to: "b", toAt: 0.25, label: "all green → merge → deploy", labelAt: 0.3 });
+      for (const [id, at] of [["#atlas", 0.5], ["#gemini", 0.5], ["#oauth", 0.5]]) {
+        edge("#vercel", id, { color: slate, from: "b", to: "t", fromAt: 0.3, toAt: at, y: 680 });
+      }
+      edge("#vercel", "#v1", { color: grey, from: "b", to: "t", fromAt: (1497 - 1284) / 360, toAt: 0.5, dash: true });
+    </script>
+  </body>
+</html>

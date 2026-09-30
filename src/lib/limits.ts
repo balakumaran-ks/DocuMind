@@ -1,0 +1,27 @@
+/**
+ * Product limits for the MVP. Every server-side check reads from here so the
+ * numbers in the PRD, the UI copy and the enforcement never drift apart.
+ */
+export const LIMITS = {
+  /** Largest PDF accepted by the upload route. */
+  maxUploadBytes: 10 * 1024 * 1024,
+  /** Pages beyond this are rejected so ingestion fits in one function call. */
+  maxPagesPerDocument: 50,
+  /** Documents a single user may keep at once. */
+  maxDocumentsPerUser: 5,
+  /** Questions a single user may ask per UTC day. */
+  maxQuestionsPerDay: 50,
+  /** Chunks retrieved per question and passed to the model. */
+  retrievalTopK: 5,
+} as const;
+
+export const ACCEPTED_MIME_TYPES = ["application/pdf"] as const;
+
+/** The first bytes of every PDF file ("%PDF-"). Checked on the server. */
+export const PDF_MAGIC_BYTES = [0x25, 0x50, 0x44, 0x46, 0x2d] as const;
+
+export function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}

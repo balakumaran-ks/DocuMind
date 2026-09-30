@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="diagram-size" content="1700x1100" />
+    <title>DocuMind data model</title>
+    <link rel="stylesheet" href="diagram.css" />
+    <script src="diagram.js"></script>
+    <style>
+      .entity {
+        flex-direction: column;
+        gap: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      .entity .head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--border);
+        background: linear-gradient(180deg, color-mix(in srgb, var(--c) 9%, white), #fff);
+      }
+      .entity .head .badge {
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+      }
+      .entity .head .badge svg {
+        width: 16px;
+        height: 16px;
+      }
+      .entity .name {
+        font-family: var(--mono);
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .entity .count {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--muted);
+      }
+      .fields {
+        padding: 6px 0 8px;
+        align-self: stretch;
+      }
+      .f {
+        display: grid;
+        grid-template-columns: 40px 1fr auto;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 14px 4px 10px;
+        font-family: var(--mono);
+        font-size: 12px;
+      }
+      .f .n {
+        color: var(--ink);
+      }
+      .f .t {
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .f .k {
+        justify-self: start;
+        font-size: 9.5px;
+        font-weight: 700;
+        padding: 1px 5px;
+        border-radius: 4px;
+        letter-spacing: 0.03em;
+      }
+      .k.PK { color: #92400e; background: #fef3c7; }
+      .k.FK { color: #3730a3; background: #e0e7ff; }
+      .k.UQ, .k.IX { color: #334155; background: #e2e8f0; }
+      .k.VEC { color: #fff; background: linear-gradient(90deg, #2563eb, #7c3aed); }
+      .k.V1 { color: #9f1239; background: #ffe4e6; }
+      .f.hl {
+        background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), transparent);
+      }
+      .f.uid .n {
+        color: var(--indigo);
+        font-weight: 600;
+      }
+      .indexes {
+        align-self: stretch;
+        padding: 8px 14px 12px;
+        border-top: 1px dashed var(--border);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .code {
+        position: absolute;
+        z-index: 3;
+        padding: 16px 18px;
+        border-radius: 16px;
+        background: #0f172a;
+        color: #e2e8f0;
+        font-family: var(--mono);
+        font-size: 12px;
+        line-height: 1.6;
+        box-shadow: 0 16px 32px -16px rgba(15, 23, 42, 0.6);
+        white-space: pre;
+      }
+      .code .h {
+        display: block;
+        margin-bottom: 8px;
+        font-family: var(--font);
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .code .s { color: #86efac; }
+      .code .n { color: #fda4af; }
+      .code .p { color: #93c5fd; }
+      .rule {
+        flex-direction: column;
+        gap: 8px;
+      }
+      .rule ul {
+        margin: 4px 0 0;
+        padding-left: 18px;
+        font-size: 12.5px;
+        line-height: 1.6;
+        color: var(--ink-2);
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; Data model</div>
+      <h1>Six collections in MongoDB Atlas, vectors included</h1>
+      <p class="subtitle">
+        <span class="mono">userId</span> is copied onto every child row on purpose, so each query and each vector search
+        can filter by owner directly, without a join.
+      </p>
+    </header>
+
+    <div class="node rule accent" id="rule" style="--c: var(--indigo); left: 56px; top: 520px; width: 300px">
+      <div style="display: flex; gap: 12px; align-items: center">
+        <span class="badge solid" data-icon="lock"></span>
+        <div class="title">Isolation by design</div>
+      </div>
+      <ul>
+        <li><span class="mono">userId</span> on every row</li>
+        <li>Every query filters by it</li>
+        <li><span class="mono">$vectorSearch</span> pre-filters by it</li>
+        <li>Deleting a document removes its pages, chunks and chats</li>
+      </ul>
+    </div>
+
+    <div class="code" id="vindex" style="left: 1320px; top: 742px; width: 324px"><span class="h">Atlas Vector Search &middot; chunks_vector</span>{
+  <span class="p">"fields"</span>: [
+    { <span class="p">"type"</span>: <span class="s">"vector"</span>,
+      <span class="p">"path"</span>: <span class="s">"embedding"</span>,
+      <span class="p">"numDimensions"</span>: <span class="n">768</span>,
+      <span class="p">"similarity"</span>: <span class="s">"cosine"</span> },
+    { <span class="p">"type"</span>: <span class="s">"filter"</span>,
+      <span class="p">"path"</span>: <span class="s">"userId"</span> },
+    { <span class="p">"type"</span>: <span class="s">"filter"</span>,
+      <span class="p">"path"</span>: <span class="s">"documentId"</span> }
+  ]
+}</div>
+
+    <div class="legend">
+      <span><span class="k PK" style="font: 700 10px var(--mono); padding: 1px 5px; border-radius: 4px">PK</span>primary key</span>
+      <span><span class="k FK" style="font: 700 10px var(--mono); padding: 1px 5px; border-radius: 4px">FK</span>reference</span>
+      <span><span class="k UQ" style="font: 700 10px var(--mono); padding: 1px 5px; border-radius: 4px">UQ</span>unique</span>
+      <span><span class="k VEC" style="font: 700 10px var(--mono); padding: 1px 5px; border-radius: 4px">VEC</span>vector-indexed</span>
+      <span><span class="k V1" style="font: 700 10px var(--mono); padding: 1px 5px; border-radius: 4px">V1</span>added in V1</span>
+    </div>
+    <div class="footer">github.com/balakumaran-ks/DocuMind</div>
+
+    <script>
+      const E = [
+        {
+          id: "users", color: "var(--amber)", icon: "user", x: 56, y: 232, w: 300, note: "Auth.js sign-in",
+          fields: [["PK", "_id", "ObjectId"], ["UQ", "email", "string"], ["", "name", "string"], ["", "image", "string?"], ["", "createdAt", "Date"]],
+        },
+        {
+          id: "documents", color: "var(--teal)", icon: "file", x: 450, y: 232, w: 340, note: "one per PDF",
+          fields: [
+            ["PK", "_id", "ObjectId"], ["FK", "userId", "→ users"], ["", "filename", "string"], ["", "sizeBytes", "number"],
+            ["", "sha256", "string"], ["", "pageCount", "number"], ["", "status", "processing|ready|failed"],
+            ["", "embeddingModel", "string"], ["", "chunkCount", "number"], ["", "createdAt", "Date"],
+          ],
+          idx: ["{ userId, createdAt: -1 }"],
+        },
+        {
+          id: "chats", color: "var(--slate)", icon: "message", x: 900, y: 232, w: 320, note: "per document",
+          fields: [["PK", "_id", "ObjectId"], ["FK", "userId", "→ users"], ["FK", "documentId", "→ documents"], ["", "title", "string"], ["", "updatedAt", "Date"]],
+          idx: ["{ userId, documentId, updatedAt: -1 }"],
+        },
+        {
+          id: "messages", color: "var(--indigo)", icon: "bookmark", x: 1320, y: 232, w: 324, note: "Q&A log",
+          fields: [
+            ["PK", "_id", "ObjectId"], ["FK", "chatId", "→ chats"], ["FK", "userId", "→ users"], ["", "role", "user|assistant"],
+            ["", "content", "string"], ["", "citations", "[{ pageNumber, chunkId }]"], ["", "retrievedChunkIds", "ObjectId[]"],
+            ["", "latencyMs", "number"], ["", "usage", "{ in, out } tokens"], ["V1", "feedback", "up|down"],
+          ],
+        },
+        {
+          id: "pages", color: "var(--teal)", icon: "book", x: 450, y: 660, w: 340, note: "text per page",
+          fields: [
+            ["PK", "_id", "ObjectId"], ["FK", "documentId", "→ documents"], ["FK", "userId", "→ users"], ["", "pageNumber", "number"],
+            ["", "text", "string"], ["", "charCount", "number"], ["", "isEmpty", "boolean"],
+          ],
+          idx: ["UQ { documentId, pageNumber }"],
+        },
+        {
+          id: "chunks", color: "var(--blue)", icon: "layers", x: 900, y: 632, w: 320, note: "retrieval unit",
+          fields: [
+            ["PK", "_id", "ObjectId"], ["FK", "documentId", "→ documents"], ["FK", "userId", "→ users"], ["", "pageNumber", "number"],
+            ["", "chunkIndex", "number"], ["", "text", "string"], ["IX", "contentHash", "sha256"], ["VEC", "embedding", "number[768]"],
+          ],
+          idx: ["{ documentId, chunkIndex }"],
+        },
+      ];
+
+      for (const e of E) {
+        const node = document.createElement("div");
+        node.className = "node entity";
+        node.id = e.id;
+        node.style.cssText = `--c:${e.color};left:${e.x}px;top:${e.y}px;width:${e.w}px`;
+        node.innerHTML =
+          `<div class="head" style="align-self:stretch"><span class="badge solid" data-icon="${e.icon}"></span><span class="name">${e.id}</span><span class="count">${e.note}</span></div>` +
+          `<div class="fields">${e.fields
+            .map(
+              ([k, n, t]) =>
+                `<div class="f${k === "VEC" ? " hl" : ""}${n === "userId" ? " uid" : ""}"><span class="k ${k}">${k}</span><span class="n">${n}</span><span class="t">${t}</span></div>`,
+            )
+            .join("")}</div>` +
+          (e.idx ? `<div class="indexes">${e.idx.map((i) => `<span class="tag" style="--c:var(--slate)">${i}</span>`).join("")}</div>` : "");
+        document.body.appendChild(node);
+      }
+
+      const rel = "#64748b";
+      edge("#users", "#documents", { color: rel, fromAt: 0.3, toAt: 0.12, label: "1 : N" });
+      edge("#documents", "#chats", { color: rel, fromAt: 0.12, toAt: 0.2, label: "1 : N" });
+      edge("#chats", "#messages", { color: rel, fromAt: 0.2, toAt: 0.12, label: "1 : N" });
+      edge("#documents", "#pages", { color: "#0d9488", from: "b", to: "t", fromAt: 0.35, toAt: 0.35, label: "1 : N" });
+      edge("#documents", "#chunks", { color: "#2563eb", from: "b", to: "t", fromAt: 0.8, toAt: 0.3, label: "1 : N", labelAt: 0.62 });
+      edge("#messages", "#chunks", { color: "#4f46e5", from: "b", to: "r", fromAt: 0.25, toAt: 0.12, dash: true, label: "citations → chunkId", labelAt: 0.62 });
+      edge("#chunks", "#vindex", { color: "#7c3aed", from: "r", to: "l", fromAt: 0.8, toAt: 0.42, dash: true, label: "indexed by", labelAt: 0.5 });
+    </script>
+  </body>
+</html>

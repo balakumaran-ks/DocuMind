@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="diagram-size" content="1700x1060" />
+    <title>DocuMind system architecture</title>
+    <link rel="stylesheet" href="diagram.css" />
+    <script src="diagram.js"></script>
+    <style>
+      .mock {
+        margin-top: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .mock .doc {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        background: #fafbff;
+      }
+      .mock .doc .ic {
+        width: 16px;
+        height: 16px;
+        color: var(--indigo);
+      }
+      .mock .doc small {
+        display: block;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .mock .dot {
+        margin-left: auto;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #10b981;
+        box-shadow: 0 0 0 3px #d1fae5;
+      }
+      .bubble {
+        max-width: 88%;
+        padding: 8px 11px;
+        border-radius: 12px;
+      }
+      .bubble.user {
+        align-self: flex-end;
+        color: #fff;
+        background: var(--indigo);
+        border-bottom-right-radius: 4px;
+      }
+      .bubble.bot {
+        align-self: flex-start;
+        background: #f1f5f9;
+        border-bottom-left-radius: 4px;
+      }
+      .cite {
+        display: inline-block;
+        margin-left: 2px;
+        padding: 0 6px;
+        border-radius: 6px;
+        font-family: var(--mono);
+        font-size: 10.5px;
+        font-weight: 600;
+        color: var(--indigo);
+        background: #e0e7ff;
+      }
+      .panel {
+        padding: 9px 11px;
+        border-radius: 10px;
+        border: 1px dashed #c7d2fe;
+        background: #f8faff;
+        color: var(--ink-2);
+      }
+      .panel b {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 10.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--indigo);
+      }
+      .panel mark {
+        background: #fef08a;
+        padding: 0 2px;
+        border-radius: 3px;
+      }
+      .route .title {
+        font-family: var(--mono);
+        font-size: 13.5px;
+        font-weight: 600;
+      }
+      .route .verb {
+        display: inline-block;
+        margin-right: 6px;
+        padding: 1px 5px;
+        border-radius: 5px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+        background: var(--c);
+        vertical-align: 1px;
+      }
+      .live {
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #047857;
+        background: #d1fae5;
+        padding: 1px 6px;
+        border-radius: 999px;
+      }
+      .module {
+        flex-direction: column;
+        gap: 2px;
+        padding: 10px 12px;
+        border-radius: 12px;
+      }
+      .module .title {
+        font-size: 13.5px;
+      }
+      .module .path {
+        font-family: var(--mono);
+        font-size: 10.5px;
+        color: color-mix(in srgb, var(--c) 80%, #000);
+      }
+      .module .sub {
+        margin-top: 2px;
+        font-size: 11.5px;
+      }
+      .rowlabel {
+        position: absolute;
+        z-index: 3;
+        font-size: 10.5px;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--c);
+      }
+      .collections {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+        margin-top: 10px;
+      }
+      .collections span {
+        font-family: var(--mono);
+        font-size: 11.5px;
+        padding: 5px 8px;
+        border-radius: 8px;
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #065f46;
+      }
+      .collections span.vec {
+        grid-column: span 2;
+        background: linear-gradient(90deg, #ecfdf5, #eff6ff);
+        border-color: #a7f3d0;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="header">
+      <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; System architecture</div>
+      <h1>One Next.js app, one database, one model provider</h1>
+      <p class="subtitle">
+        Uploads are parsed, chunked and embedded once. Each question runs one filtered vector search and one
+        streamed Gemini call, which keeps answers fast, cheap and traceable to a page.
+      </p>
+    </header>
+
+    <!-- Client -->
+    <div class="node accent" id="browser" style="--c: var(--indigo); left: 56px; top: 232px; width: 244px; height: 578px; flex-direction: column; gap: 0">
+      <div style="display: flex; gap: 12px; align-items: center">
+        <span class="badge solid" data-icon="browser"></span>
+        <div class="body">
+          <div class="title">Browser</div>
+          <div class="sub">React 19 &middot; Tailwind &middot; AI SDK <span class="mono">useChat</span></div>
+        </div>
+      </div>
+      <div class="mock">
+        <div class="doc">
+          <span class="ic" data-icon="file"></span>
+          <div>handbook.pdf<small>42 pages &middot; ready</small></div>
+          <span class="dot"></span>
+        </div>
+        <div class="bubble user">What is the refund window?</div>
+        <div class="bubble bot">30 days from delivery, unless the item arrived damaged <span class="cite">p. 12</span></div>
+        <div class="panel">
+          <b>Page 12</b>
+          &hellip;refunds are accepted <mark>within 30 days of delivery</mark>. Damaged items may be returned at any time&hellip;
+        </div>
+        <div class="bubble user">Who is the CEO?</div>
+        <div class="bubble bot">That isn&rsquo;t in this document.</div>
+      </div>
+    </div>
+
+    <!-- Next.js app -->
+    <div class="group" id="app" style="--c: var(--ink); left: 350px; top: 212px; width: 774px; height: 598px">
+      <span class="group-label"><span data-icon="cloud"></span>Next.js app on Vercel</span>
+    </div>
+
+    <div class="node compact route" id="r-auth" style="--c: var(--amber); left: 374px; top: 250px; width: 196px; height: 66px; flex-direction: column; gap: 2px">
+      <div class="title"><span class="verb">ALL</span>/api/auth/*</div>
+      <div class="sub">Auth.js &middot; Google sign-in</div>
+    </div>
+    <div class="node compact route" id="r-docs" style="--c: var(--teal); left: 374px; top: 384px; width: 196px; height: 66px; flex-direction: column; gap: 2px">
+      <div class="title"><span class="verb">POST</span>/api/documents</div>
+      <div class="sub">validate &middot; ingest</div>
+    </div>
+    <div class="node compact route" id="r-ask" style="--c: var(--indigo); left: 374px; top: 510px; width: 196px; height: 66px; flex-direction: column; gap: 2px">
+      <div class="title"><span class="verb">POST</span>/api/ask</div>
+      <div class="sub">retrieve &middot; stream answer</div>
+    </div>
+    <div class="node compact route" id="r-chats" style="--c: var(--slate); left: 374px; top: 620px; width: 196px; height: 66px; flex-direction: column; gap: 2px">
+      <div class="title"><span class="verb">GET</span>/api/chats</div>
+      <div class="sub">history per document</div>
+    </div>
+    <div class="node compact route" id="r-health" style="--c: var(--green); left: 374px; top: 718px; width: 196px; height: 66px; flex-direction: column; gap: 2px">
+      <span class="live">LIVE</span>
+      <div class="title"><span class="verb">GET</span>/api/health</div>
+      <div class="sub">liveness &middot; config check</div>
+    </div>
+
+    <div class="group" id="lib" style="--c: var(--violet); left: 604px; top: 356px; width: 496px; height: 284px">
+      <span class="group-label"><span data-icon="code"></span>src/lib &middot; framework-free core</span>
+    </div>
+    <span class="rowlabel" style="--c: var(--teal); left: 628px; top: 378px">Ingest path</span>
+    <span class="rowlabel" style="--c: var(--indigo); left: 628px; top: 504px">Ask path</span>
+
+    <div class="node module" id="m-extract" style="--c: var(--teal); left: 628px; top: 398px; width: 140px; height: 88px">
+      <div class="title">PDF extract</div>
+      <div class="path">pdf/extract.ts</div>
+      <div class="sub">text per page</div>
+    </div>
+    <div class="node module" id="m-chunk" style="--c: var(--teal); left: 782px; top: 398px; width: 140px; height: 88px">
+      <div class="title">Chunker</div>
+      <div class="path">chunking/chunker.ts</div>
+      <div class="sub">page-bounded, overlap</div>
+    </div>
+    <div class="node module" id="m-embed" style="--c: var(--teal); left: 936px; top: 398px; width: 140px; height: 88px">
+      <div class="title">Embedder</div>
+      <div class="path">ai/embed.ts</div>
+      <div class="sub">hash, skip seen, batch</div>
+    </div>
+
+    <div class="node module" id="m-retrieve" style="--c: var(--indigo); left: 628px; top: 524px; width: 140px; height: 88px">
+      <div class="title">Retriever</div>
+      <div class="path">rag/retrieve.ts</div>
+      <div class="sub">top 5, userId filter</div>
+    </div>
+    <div class="node module" id="m-prompt" style="--c: var(--indigo); left: 782px; top: 524px; width: 140px; height: 88px">
+      <div class="title">Prompt builder</div>
+      <div class="path">rag/prompt.ts</div>
+      <div class="sub">&lt;source page=N&gt;</div>
+    </div>
+    <div class="node module" id="m-cite" style="--c: var(--indigo); left: 936px; top: 524px; width: 140px; height: 88px">
+      <div class="title">Citation parser</div>
+      <div class="path">rag/citations.ts</div>
+      <div class="sub">keep retrieved pages</div>
+    </div>
+
+    <div class="node compact" id="shared" style="--c: var(--slate); left: 604px; top: 690px; width: 496px; height: 94px">
+      <span class="badge" data-icon="layers"></span>
+      <div class="body">
+        <div class="title">Shared</div>
+        <div class="tags">
+          <span class="tag">env.ts &middot; typed config</span>
+          <span class="tag">limits.ts &middot; caps</span>
+          <span class="tag">db.ts &middot; Mongo client</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- External services -->
+    <div class="node accent" id="google" style="--c: var(--amber); left: 1344px; top: 244px; width: 300px; height: 78px">
+      <span class="badge solid" data-icon="key"></span>
+      <div class="body">
+        <div class="title">Google OAuth</div>
+        <div class="sub">Sign-in only; JWT session cookie</div>
+      </div>
+    </div>
+
+    <div class="node accent" id="gemini" style="--c: var(--blue); left: 1344px; top: 372px; width: 300px; height: 142px">
+      <span class="badge solid" data-icon="sparkles"></span>
+      <div class="body">
+        <div class="title">Gemini API</div>
+        <div class="sub">Behind the Vercel AI SDK, so switching provider is one line</div>
+        <div class="tags">
+          <span class="tag">gemini-embedding-2 &middot; 768d</span>
+          <span class="tag">gemini-3.5-flash &middot; stream</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="node accent" id="atlas" style="--c: var(--green); left: 1344px; top: 590px; width: 300px; height: 246px">
+      <span class="badge solid" data-icon="database"></span>
+      <div class="body" style="flex: 1">
+        <div class="title">MongoDB Atlas</div>
+        <div class="sub">M0 free cluster &middot; data and vectors together</div>
+        <div class="collections">
+          <span>users</span><span>documents</span><span>pages</span><span>chunks</span><span>chats</span><span>messages</span>
+          <span class="vec">chunks_vector index &middot; cosine &middot; filter userId</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- V1 -->
+    <div class="group dashed" id="v1" style="--c: var(--slate); left: 350px; top: 862px; width: 1294px; height: 118px">
+      <span class="group-label"><span data-icon="zap"></span>V1 &middot; background ingestion (Week 3)</span>
+    </div>
+    <div class="node dashed compact" id="redis" style="--c: var(--rose); left: 660px; top: 890px; width: 270px; height: 66px">
+      <span class="badge" data-icon="server"></span>
+      <div class="body">
+        <div class="title">Upstash Redis</div>
+        <div class="sub">BullMQ queue, retries</div>
+      </div>
+    </div>
+    <div class="node dashed compact" id="worker" style="--c: var(--rose); left: 1010px; top: 890px; width: 270px; height: 66px">
+      <span class="badge" data-icon="cpu"></span>
+      <div class="body">
+        <div class="title">Ingest worker</div>
+        <div class="sub">same src/lib code, progress events</div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <span style="--c: var(--teal)"><i></i>Ingest path</span>
+      <span style="--c: var(--indigo)"><i></i>Ask path</span>
+      <span style="--c: var(--amber)"><i></i>Sign-in</span>
+      <span style="--c: #94a3b8"><i class="dash"></i>Planned for V1</span>
+    </div>
+    <div class="footer">github.com/balakumaran-ks/DocuMind</div>
+
+    <script>
+      const teal = "#0d9488", indigo = "#4f46e5", amber = "#d97706", slate = "#64748b", grey = "#94a3b8";
+
+      // Browser -> routes (y aligned to each route)
+      edge("#browser", "#r-auth", { color: amber, toAt: 0.5, fromAt: (283 - 232) / 578, label: "sign in", labelAt: 0.45 });
+      edge("#browser", "#r-docs", { color: teal, fromAt: (417 - 232) / 578, step: 1, labelAt: 0.4 });
+      edge("#browser", "#r-ask", { color: indigo, fromAt: (543 - 232) / 578, both: true, step: 1, labelAt: 0.4 });
+      edge("#browser", "#r-chats", { color: slate, fromAt: (653 - 232) / 578 });
+
+      // Routes -> core
+      edge("#r-docs", "#m-extract", { color: teal, toAt: (417 - 398) / 88, step: 2, labelAt: 0.5 });
+      edge("#r-ask", "#m-retrieve", { color: indigo, toAt: (543 - 524) / 88, step: 2, labelAt: 0.5 });
+      edge("#r-auth", "#google", { color: amber, fromAt: 0.5, toAt: (283 - 244) / 78 });
+
+      // Ingest row
+      edge("#m-extract", "#m-chunk", { color: teal });
+      edge("#m-chunk", "#m-embed", { color: teal });
+      // Ask row
+      edge("#m-retrieve", "#m-prompt", { color: indigo });
+      edge("#m-prompt", "#m-cite", { color: indigo });
+
+      // Core -> services
+      edge("#m-embed", "#gemini", { color: teal, fromAt: (430 - 398) / 88, toAt: (430 - 372) / 142, label: "embedMany", step: 3, labelPos: [1222, 430] });
+      edge("#m-embed", "#atlas", { color: teal, fromAt: (468 - 398) / 88, points: [[1150, 468], [1150, 622]], toAt: (622 - 590) / 240, label: "insert pages + chunks", step: 4, labelPos: [1250, 622] });
+      edge("#m-cite", "#gemini", { color: indigo, fromAt: (548 - 524) / 88, points: [[1270, 548], [1270, 490]], toAt: (490 - 372) / 142, label: "streamText", step: 4, labelPos: [1210, 548] });
+      edge("#m-cite", "#atlas", { color: indigo, fromAt: (596 - 524) / 88, points: [[1110, 596], [1110, 700]], toAt: (700 - 590) / 240, label: "$vectorSearch · save chat", step: 3, labelPos: [1230, 700] });
+
+      // V1
+      edge("#r-docs", "#redis", { color: grey, dash: true, from: "l", to: "l", points: [[326, 440], [326, 923]], fromAt: 0.85, label: "enqueue · 202", labelAt: 0.62 });
+      edge("#redis", "#worker", { color: grey, dash: true });
+      edge("#worker", "#atlas", { color: grey, dash: true, to: "b", toAt: 0.5, label: "ingest with retries", labelAt: 0.35 });
+    </script>
+  </body>
+</html>
