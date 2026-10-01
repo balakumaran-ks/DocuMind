@@ -3,8 +3,8 @@
  * numbers in the PRD, the UI copy and the enforcement never drift apart.
  */
 export const LIMITS = {
-  /** Largest PDF accepted by the upload route. */
-  maxUploadBytes: 10 * 1024 * 1024,
+  /** Largest PDF accepted by the upload route; under Vercel's 4.5 MB body limit (ADR-0006). */
+  maxUploadBytes: 4 * 1024 * 1024,
   /** Pages beyond this are rejected so ingestion fits in one function call. */
   maxPagesPerDocument: 50,
   /** Documents a single user may keep at once. */

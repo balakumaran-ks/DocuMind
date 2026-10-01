@@ -15,7 +15,7 @@
 
 ## What it does
 
-- **Upload a text PDF** (up to 10 MB / 50 pages); text is extracted and stored page by page.
+- **Upload a text PDF** (up to 4 MB / 50 pages); text is extracted and stored page by page.
 - **Ask questions** and get a streamed answer grounded in the five most relevant passages.
 - **Page-level citations:** every `[p. N]` is clickable and opens that page's text.
 - **Refuses instead of guessing** when the document doesn't contain the answer.
@@ -38,7 +38,7 @@ More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): data model, API routes, se
 | Frontend + API | Next.js (App Router), TypeScript, Tailwind CSS | One repo, one deploy ([ADR-0001](docs/adr/0001-single-nextjs-app.md)) |
 | Auth | Auth.js with Google sign-in | Free, little code |
 | Database + vectors | MongoDB Atlas + Atlas Vector Search | Data and embeddings in one place ([ADR-0002](docs/adr/0002-mongodb-atlas-vector-search.md)) |
-| PDF parsing | pdfjs-dist | Text per page, which citations need |
+| PDF parsing | unpdf (PDF.js for serverless) | Text per page, which citations need |
 | LLM + embeddings | Gemini via the Vercel AI SDK | Free tier; switching provider is one line ([ADR-0003](docs/adr/0003-gemini-via-vercel-ai-sdk.md)) |
 | Queue (V1) | BullMQ + Upstash Redis | Background ingestion with retries |
 | Tests + CI | Vitest, Playwright, GitHub Actions | Merges blocked unless everything passes |

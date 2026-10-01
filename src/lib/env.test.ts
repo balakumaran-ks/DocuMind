@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ENV_DEFAULTS, EnvError, missingServerEnv, readServerEnv } from "./env";
+import { ENV_DEFAULTS, EnvError, missingServerEnv, placeholderServerEnv, readServerEnv } from "./env";
 
 const complete = {
   MONGODB_URI: "mongodb+srv://user:pass@cluster.example.mongodb.net",
@@ -48,6 +48,16 @@ describe("readServerEnv", () => {
     );
   });
 
+  it("rejects a value still holding a template placeholder, naming the variable", () => {
+    const uri = "mongodb+srv://<db_username>:realpass@cluster0.example.mongodb.net/";
+    expect(() => readServerEnv({ ...complete, MONGODB_URI: uri })).toThrow(/MONGODB_URI.*placeholder/);
+  });
+
+  it("does not echo the offending value in the error", () => {
+    const uri = "mongodb+srv://<db_username>:s3cret-pass@cluster0.example.mongodb.net/";
+    expect(() => readServerEnv({ ...complete, MONGODB_URI: uri })).not.toThrow(/s3cret-pass/);
+  });
+
   it.each(["abc", "64", "4096", "768.5"])("rejects EMBEDDING_DIMENSIONS=%s", (value) => {
     expect(() => readServerEnv({ ...complete, EMBEDDING_DIMENSIONS: value })).toThrow(
       /EMBEDDING_DIMENSIONS/,
@@ -65,5 +75,33 @@ describe("missingServerEnv", () => {
     expect(missing).not.toContain("MONGODB_URI");
     expect(missing).toContain("AUTH_SECRET");
     expect(missing.join(" ")).not.toContain(complete.MONGODB_URI);
+  });
+});
+
+describe("placeholderServerEnv", () => {
+  it("returns an empty list for real values", () => {
+    expect(placeholderServerEnv(complete)).toEqual([]);
+  });
+
+  it.each([
+    ["the Atlas username placeholder", "mongodb+srv://<db_username>:pw@c.example.mongodb.net/"],
+    ["the .env.example password placeholder", "mongodb+srv://user:<password>@c.example.mongodb.net/"],
+  ])("flags %s by variable name", (_name, uri) => {
+    expect(placeholderServerEnv({ ...complete, MONGODB_URI: uri })).toEqual(["MONGODB_URI"]);
+  });
+
+  it.each([
+    ["a URL-encoded angle bracket", "mongodb+srv://user:p%3Cx%3E@c.example.mongodb.net/"],
+    ["a lone < inside a password", "mongodb+srv://user:a<b@c.example.mongodb.net/"],
+  ])("does not flag %s", (_name, uri) => {
+    expect(placeholderServerEnv({ ...complete, MONGODB_URI: uri })).toEqual([]);
+  });
+
+  it("checks every required variable, not just the database", () => {
+    expect(placeholderServerEnv({ ...complete, AUTH_GOOGLE_ID: "<client-id>" })).toEqual(["AUTH_GOOGLE_ID"]);
+  });
+
+  it("ignores missing variables (missingServerEnv reports those)", () => {
+    expect(placeholderServerEnv({})).toEqual([]);
   });
 });
