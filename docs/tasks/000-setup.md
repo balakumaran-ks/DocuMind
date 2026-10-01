@@ -10,8 +10,8 @@
 - [x] GitHub Actions: lint, typecheck, tests, build on every push and PR
 - [x] `.env.example` committed; `.env*` ignored from the first commit
 - [x] Architecture diagrams rendered to PNG in `docs/assets/`
-- [ ] **Manual:** create the MongoDB Atlas M0 cluster and a Gemini API key; fill `.env.local`; `GET /api/health` returns `"configured": true`
-- [ ] **Manual:** create the Google OAuth client for Auth.js (redirect URI `http://localhost:3000/api/auth/callback/google`)
+- [x] **Manual:** create the MongoDB Atlas M0 cluster and a Gemini API key; fill `.env.local`; `GET /api/health` returns `"configured": true`
+- [x] **Manual:** create the Google OAuth client for Auth.js (redirect URI `http://localhost:3000/api/auth/callback/google`)
 
 ## Gate
 
