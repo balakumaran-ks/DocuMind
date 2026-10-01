@@ -3,7 +3,8 @@ import { formatBytes, LIMITS, PDF_MAGIC_BYTES } from "./limits";
 
 describe("LIMITS", () => {
   it("matches the MVP scope in docs/PRD.md", () => {
-    expect(LIMITS.maxUploadBytes).toBe(10 * 1024 * 1024);
+    // 4 MB, under Vercel's 4.5 MB request body limit for functions (ADR-0006).
+    expect(LIMITS.maxUploadBytes).toBe(4 * 1024 * 1024);
     expect(LIMITS.maxPagesPerDocument).toBe(50);
     expect(LIMITS.maxDocumentsPerUser).toBe(5);
     expect(LIMITS.maxQuestionsPerDay).toBe(50);

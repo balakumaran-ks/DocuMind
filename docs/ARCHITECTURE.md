@@ -21,8 +21,8 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 ![Ingest pipeline](assets/ingest-pipeline.png)
 
 1. `POST /api/documents` receives `multipart/form-data`.
-2. **Validate on the server:** session present, under 5 documents, size ≤ 10 MB, magic bytes `%PDF-`, page count ≤ 50.
-3. **Extract** text per page with `pdfjs-dist`. Pages with no text are flagged (likely scanned).
+2. **Validate on the server:** session present, under 5 documents, size ≤ 4 MB ([ADR-0006](adr/0006-four-mb-upload-cap.md)), magic bytes `%PDF-`, page count ≤ 50.
+3. **Extract** text per page with `unpdf` (PDF.js packaged for serverless). Pages with no text are flagged (likely scanned).
 4. **Chunk** each page separately with overlap, so every chunk belongs to exactly one page ([ADR-0004](adr/0004-page-bounded-chunking.md)).
 5. **Hash** each chunk (SHA-256 of normalised text + embedding model). Chunks whose hash already exists reuse the stored vector.
 6. **Embed** new chunks in batches.

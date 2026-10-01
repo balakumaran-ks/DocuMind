@@ -1,28 +1,31 @@
 # 001 — Upload a PDF and extract text per page
 
-**Goal:** a signed-in user can upload one PDF and see its extracted text, page by page.
+**Goal:** a POST to `/api/documents` with a PDF stores one `documents` row and one `pages` row per page, all with `userId`, and a throwaway page shows the extracted text.
 
-## Acceptance criteria
+Split into two PRs to stay under ~300 changed lines each.
 
-- `POST /api/documents` accepts `multipart/form-data` with one `file` field.
-- Rejects on the server, with a clear `4xx` JSON error: no session (401), not a PDF by magic bytes (415), over `LIMITS.maxUploadBytes` (413), over `LIMITS.maxPagesPerDocument` (422), over `LIMITS.maxDocumentsPerUser` (409).
-- Extracts text per page with `pdfjs-dist`; normalises whitespace; flags pages with no text as `isEmpty`.
-- Stores one `documents` row and one `pages` row per page, all with `userId`.
-- Returns `201 { documentId, pageCount, emptyPages }`.
+## 001a — validation and extraction (no database)
+
+- `validateUpload({ size, head, documentCount })` returns `{ ok: true }` or `{ ok: false, status, code, message }`. Checks run in this order: over `LIMITS.maxUploadBytes` → 413 `too_large` (message names the limit); first bytes are not `%PDF-` → 415 `not_pdf`; at `LIMITS.maxDocumentsPerUser` → 409 `too_many_documents`.
+- `countPages(bytes)` and `extractPages(bytes)` use `unpdf`. Each page becomes `{ pageNumber, text, charCount, isEmpty }`. Text goes through `normalizeText` (LF line endings, collapsed spaces, trimmed lines, at most one blank line). Unreadable input throws `PdfReadError`. Callers may reuse the same bytes for both calls.
+- `readServerEnv` rejects, and `/api/health` reports by name, any required variable that still holds a `<placeholder>` from a template.
+- `LIMITS.maxUploadBytes` is 4 MB ([ADR-0006](../adr/0006-four-mb-upload-cap.md)).
+- Fixture PDFs come from `tests/fixtures/make-fixtures.mjs` (zero dependencies, committed output).
+
+**Tests:** `src/lib/upload/validate.test.ts`, `src/lib/pdf/extract.test.ts`, additions to `src/lib/env.test.ts`, `src/app/api/health/route.test.ts` and `src/lib/limits.test.ts`.
+
+## 001b — storage and route
+
+- `POST /api/documents` (`multipart/form-data`, one `file` field) responds in this order: no user → 401; no file → 400; `validateUpload` → 413/415/409; over `LIMITS.maxPagesPerDocument` or unreadable → 422; every page empty → 422 ("looks scanned; OCR is not supported yet"); otherwise store and return `201 { documentId, pageCount, emptyPages }`.
+- Stores the document with `status: "processing"` (embedding comes in 003), `sha256` of the file, `pageCount`, and one `pages` row per page.
+- `getUserId()` returns a fixed dev user in development and test only, and `null` in production, so the route answers 401 there until Auth.js lands in 005.
 - A throwaway page at `/documents/[id]` shows each page's text (replaced in 005).
+- CI caches the MongoDB binary used by `mongodb-memory-server`.
 
-Until Auth.js lands in 005, the route reads a fixed dev `userId` behind a `getUserId()` helper, so swapping in the real session is a one-line change.
+**Tests (integration, mongodb-memory-server):** the happy path writes the expected rows; a second user cannot read them; the 6th upload gets 409; a rejected upload writes nothing.
 
-## Tests first
+**Files likely touched:** `src/lib/db/client.ts`, `src/lib/db/documents.ts`, `src/lib/auth/user.ts`, `src/app/api/documents/route.ts`, `src/app/documents/[id]/page.tsx`, `.github/workflows/ci.yml`
 
-- Unit: `extractPages(buffer)` on two small fixture PDFs in `tests/fixtures/` (one text, one with a blank page).
-- Unit: `validateUpload()` for each rejection case.
-- Integration (mongodb-memory-server): the happy path writes the expected rows; a second user cannot read them.
+## Dependencies (approved)
 
-## Files likely touched
-
-`src/lib/pdf/extract.ts`, `src/lib/upload/validate.ts`, `src/lib/db/*.ts`, `src/app/api/documents/route.ts`, `tests/fixtures/*.pdf`
-
-## Dependencies to request
-
-`pdfjs-dist`, `mongodb`, `mongodb-memory-server` (dev)
+`unpdf` (001a); `mongodb`, `mongodb-memory-server` as a dev dependency (001b).

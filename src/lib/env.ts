@@ -49,6 +49,15 @@ export function readServerEnv(source: Source = process.env): ServerEnv {
   const missing = REQUIRED.filter((key) => !value(key));
   if (missing.length > 0) throw new EnvError([...missing]);
 
+  const placeholders = placeholderServerEnv(source);
+  if (placeholders.length > 0) {
+    throw new EnvError(
+      [],
+      `${placeholders.join(", ")} still ${placeholders.length === 1 ? "contains" : "contain"} a template placeholder ` +
+        `such as <db_username>; replace it with the real value.`,
+    );
+  }
+
   const dimensionsRaw = value("EMBEDDING_DIMENSIONS") ?? ENV_DEFAULTS.EMBEDDING_DIMENSIONS;
   const embeddingDimensions = Number(dimensionsRaw);
   if (!Number.isInteger(embeddingDimensions) || embeddingDimensions < 128 || embeddingDimensions > 3072) {
@@ -74,4 +83,16 @@ export function readServerEnv(source: Source = process.env): ServerEnv {
 /** Names of required variables that are unset, for the health check. Never returns values. */
 export function missingServerEnv(source: Source = process.env): string[] {
   return REQUIRED.filter((key) => !source[key]?.trim());
+}
+
+/** A token like <db_username> or <password>, as left by copying a template. */
+const PLACEHOLDER = /<[A-Za-z][A-Za-z0-9_-]*>/;
+
+/**
+ * Names of required variables that are set but still hold a template
+ * placeholder, which would otherwise only fail later as a confusing auth
+ * error. Never returns values.
+ */
+export function placeholderServerEnv(source: Source = process.env): string[] {
+  return REQUIRED.filter((key) => PLACEHOLDER.test(source[key] ?? ""));
 }
