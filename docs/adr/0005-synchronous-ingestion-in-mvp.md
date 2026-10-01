@@ -9,7 +9,7 @@ Ingestion (parse, chunk, embed, store) for a 50-page PDF takes seconds to tens o
 
 ## Decision
 
-In the MVP, run ingestion inside `POST /api/documents` and return when the document is `ready`. Cap documents at 50 pages and 10 MB to stay under the function time limit, and set the route's `maxDuration` explicitly.
+In the MVP, run ingestion inside `POST /api/documents` and return when the document is `ready`. Cap documents at 50 pages and 4 MB (ADR-0006) to stay under the function time limit, and set the route's `maxDuration` explicitly.
 
 ## Alternatives considered
 

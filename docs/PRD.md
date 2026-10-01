@@ -21,7 +21,7 @@ One signed-in person working with their own text PDFs: course notes, papers, man
 
 | # | Feature | Acceptance |
 | --- | --- | --- |
-| 1 | Upload a text PDF | Up to 10 MB and 50 pages. Type, size and page count checked on the server. Text stored per page. Empty (scanned) pages are detected and reported. |
+| 1 | Upload a text PDF | Up to 4 MB and 50 pages ([ADR-0006](adr/0006-four-mb-upload-cap.md)). Type, size and page count checked on the server. Text stored per page. Empty (scanned) pages are detected and reported. |
 | 2 | Ask questions about one document | Top 5 chunks retrieved from that document only; answer grounded in them. |
 | 3 | Page-level citations | Answer contains `[p. N]` markers; each one is clickable and opens that page's text. |
 | 4 | Refusal | If the retrieved text does not contain the answer, the reply says it is not in the document. |

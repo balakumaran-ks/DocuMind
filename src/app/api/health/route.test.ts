@@ -25,6 +25,20 @@ describe("GET /api/health", () => {
     const body = await (await GET()).json();
     expect(body.configured).toBe(true);
     expect(body.missingEnv).toEqual([]);
+    expect(body.placeholderEnv).toEqual([]);
+    expect(JSON.stringify(body)).not.toContain("secret-value");
+  });
+
+  it("reports a variable still holding a template placeholder as not configured", async () => {
+    vi.stubEnv("MONGODB_URI", "mongodb+srv://<db_username>:secret-value@example");
+    vi.stubEnv("GOOGLE_GENERATIVE_AI_API_KEY", "k");
+    vi.stubEnv("AUTH_SECRET", "s");
+    vi.stubEnv("AUTH_GOOGLE_ID", "id");
+    vi.stubEnv("AUTH_GOOGLE_SECRET", "gs");
+    const body = await (await GET()).json();
+    expect(body.configured).toBe(false);
+    expect(body.missingEnv).toEqual([]);
+    expect(body.placeholderEnv).toEqual(["MONGODB_URI"]);
     expect(JSON.stringify(body)).not.toContain("secret-value");
   });
 });
