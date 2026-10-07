@@ -12,6 +12,11 @@ export type StoredDocument = {
   pageCount: number;
   status: DocumentStatus;
   createdAt: Date;
+  /** Set once embedded (status "ready"). */
+  chunkCount?: number;
+  embeddingModel?: string;
+  /** Why ingestion failed (status "failed"). */
+  error?: string;
 };
 
 export type StoredPage = {
@@ -82,6 +87,22 @@ export async function insertDocumentWithPages(db: Db, input: NewDocument): Promi
   }
 
   return _id;
+}
+
+export async function markDocumentReady(
+  db: Db,
+  userId: string,
+  documentId: ObjectId,
+  details: { chunkCount: number; embeddingModel: string },
+): Promise<void> {
+  await documents(db).updateOne(
+    { _id: documentId, userId },
+    { $set: { status: "ready", ...details }, $unset: { error: "" } },
+  );
+}
+
+export async function markDocumentFailed(db: Db, userId: string, documentId: ObjectId, error: string): Promise<void> {
+  await documents(db).updateOne({ _id: documentId, userId }, { $set: { status: "failed", error } });
 }
 
 /** A user's document with its pages in order, or null if it doesn't exist or isn't theirs. */

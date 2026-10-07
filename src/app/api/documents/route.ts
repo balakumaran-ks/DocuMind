@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
+import { EmbeddingError, getEmbedder } from "@/lib/ai/embed";
 import { getUserId } from "@/lib/auth/user";
 import { getDb, isDatabaseUnavailable } from "@/lib/db/client";
 import { countDocuments, insertDocumentWithPages } from "@/lib/db/documents";
+import { ingestDocument } from "@/lib/ingest";
 import { LIMITS, PDF_MAGIC_BYTES } from "@/lib/limits";
 import { countPages, extractPages, PdfReadError } from "@/lib/pdf/extract";
 import { validateUpload } from "@/lib/upload/validate";
@@ -18,10 +20,11 @@ type ErrorCode =
   | "too_many_pages"
   | "unreadable_pdf"
   | "no_text"
-  | "database_unavailable";
+  | "database_unavailable"
+  | "embedding_failed";
 
-function error(status: number, code: ErrorCode, message: string) {
-  return Response.json({ error: { code, message } }, { status });
+function error(status: number, code: ErrorCode, message: string, extra: Record<string, string> = {}) {
+  return Response.json({ error: { code, message, ...extra } }, { status });
 }
 
 /**
@@ -82,11 +85,29 @@ async function handleUpload(request: Request) {
       pages,
     });
 
+    let chunkCount: number;
+    try {
+      ({ chunkCount } = await ingestDocument({ db, embedder: getEmbedder(), userId, documentId, pages }));
+    } catch (cause) {
+      // The document and its pages are kept, marked "failed", so indexing can be retried later.
+      if (cause instanceof EmbeddingError) {
+        return error(
+          502,
+          "embedding_failed",
+          "The document was saved, but indexing it failed. Please try again in a minute.",
+          { documentId: documentId.toHexString() },
+        );
+      }
+      throw cause;
+    }
+
     return Response.json(
       {
         documentId: documentId.toHexString(),
         pageCount: pages.length,
         emptyPages: pages.filter((page) => page.isEmpty).map((page) => page.pageNumber),
+        status: "ready",
+        chunkCount,
       },
       { status: 201 },
     );

@@ -24,7 +24,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 2. **Validate on the server:** session present, under 5 documents, size ≤ 4 MB ([ADR-0006](adr/0006-four-mb-upload-cap.md)), magic bytes `%PDF-`, page count ≤ 50.
 3. **Extract** text per page with `unpdf`, PDF.js packaged for serverless ([ADR-0007](adr/0007-unpdf-for-text-extraction.md)). Pages with no text are flagged (likely scanned).
 4. **Chunk** each page separately with overlap, so every chunk belongs to exactly one page ([ADR-0004](adr/0004-page-bounded-chunking.md)).
-5. **Hash** each chunk (SHA-256 of normalised text + embedding model). Chunks whose hash already exists reuse the stored vector.
+5. **Hash** each chunk (SHA-256 of normalised text + embedding model). Chunks whose hash this user already has reuse the stored vector.
 6. **Embed** new chunks in batches.
 7. **Store** `pages` and `chunks`, then set the document `status: "ready"`.
 
@@ -51,7 +51,7 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 | `users` | `_id`, `email`, `name`, `image`, `createdAt` | `email` unique |
 | `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `createdAt` | `{ userId, createdAt: -1 }` |
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
-| `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `text`, `contentHash`, `embedding: number[768]`, `tokenEstimate` | `{ documentId, chunkIndex }`, `contentHash`, **vector index** |
+| `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding: number[768]`, `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index** |
 | `chats` | `_id`, `userId`, `documentId`, `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
 | `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `feedback?` (V1), `createdAt` | `{ chatId, createdAt }` |
 

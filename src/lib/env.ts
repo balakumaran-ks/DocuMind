@@ -35,9 +35,14 @@ export const ENV_DEFAULTS = {
 } as const;
 
 export class EnvError extends Error {
-  constructor(readonly missing: string[], message?: string) {
+  // A plain field rather than a constructor parameter property, so Node can run
+  // this file directly with type stripping (scripts/create-indexes.ts).
+  readonly missing: string[];
+
+  constructor(missing: string[], message?: string) {
     super(message ?? `Missing required environment variables: ${missing.join(", ")}`);
     this.name = "EnvError";
+    this.missing = missing;
   }
 }
 
