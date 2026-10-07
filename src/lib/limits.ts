@@ -13,6 +13,10 @@ export const LIMITS = {
   maxQuestionsPerDay: 50,
   /** Chunks retrieved per question and passed to the model. */
   retrievalTopK: 5,
+  /** Maximum chunk length in characters, ~300 tokens (ADR-0004; tuned with evals in week 4). */
+  chunkSize: 1200,
+  /** Characters shared by consecutive chunks of a page (ADR-0004). */
+  chunkOverlap: 200,
 } as const;
 
 export const ACCEPTED_MIME_TYPES = ["application/pdf"] as const;
