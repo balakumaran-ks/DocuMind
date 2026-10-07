@@ -43,3 +43,9 @@ next-env.d.ts
 
 # rendered-diagram scratch output
 /docs/diagrams/.render/
+
+# local only: personal notes and coding-assistant instructions
+/private/
+/AGENTS.md
+/CLAUDE.md
+/GEMINI.md

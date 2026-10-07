@@ -5,7 +5,7 @@
 
 ## Context
 
-We need an embedding model and a chat model with a free tier, streaming, and the freedom to switch providers if quotas change.
+The app needs an embedding model and a chat model with a free tier, streaming, and the freedom to switch providers if quotas change.
 
 ## Decision
 

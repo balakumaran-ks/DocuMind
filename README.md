@@ -9,43 +9,43 @@
 ![Gemini](https://img.shields.io/badge/Gemini-AI%20SDK-4285f4?logo=googlegemini&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-> **Status:** Setup phase complete (repo, docs, CI, architecture). The MVP (upload → ask → cited answer) is in progress; see the [roadmap](#roadmap).
+> **Status:** setup complete; the MVP is in progress. Upload validation and per-page text extraction are built; storage, retrieval and the chat UI are next. See the [roadmap](#roadmap).
 
 ![DocuMind system architecture](docs/assets/architecture-overview.png)
 
 ## What it does
 
-- **Upload a text PDF** (up to 4 MB / 50 pages); text is extracted and stored page by page.
+- **Upload a text PDF** (up to 4 MB and 50 pages). Text is extracted and stored page by page.
 - **Ask questions** and get a streamed answer grounded in the five most relevant passages.
-- **Page-level citations:** every `[p. N]` is clickable and opens that page's text.
-- **Refuses instead of guessing** when the document doesn't contain the answer.
+- **Page-level citations:** every `[p. N]` in an answer is clickable and opens that page's text.
+- **Refuses instead of guessing** when the document does not contain the answer.
 - **Private by design:** Google sign-in, and every query and vector search is filtered by user.
 
 ## How it works
 
-Uploads are parsed, chunked and embedded **once**. Each question then runs one filtered vector search and one streamed Gemini call.
+Uploads are parsed, chunked and embedded **once**. Each question then runs one filtered vector search and one streamed Gemini call, which keeps answers fast, cheap and traceable to a page.
 
 | Ingest path | Ask path |
 | --- | --- |
 | ![Ingest pipeline](docs/assets/ingest-pipeline.png) | ![Ask sequence](docs/assets/ask-sequence.png) |
 
-More in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): data model, API routes, security and deployment.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) covers the data model, API routes, security and deployment.
 
 ## Stack
 
 | Layer | Choice | Why |
 | --- | --- | --- |
-| Frontend + API | Next.js (App Router), TypeScript, Tailwind CSS | One repo, one deploy ([ADR-0001](docs/adr/0001-single-nextjs-app.md)) |
-| Auth | Auth.js with Google sign-in | Free, little code |
+| Frontend + API | Next.js (App Router), TypeScript, Tailwind CSS | One codebase and one deploy ([ADR-0001](docs/adr/0001-single-nextjs-app.md)) |
+| Auth | Auth.js with Google sign-in | No passwords to store; little code |
 | Database + vectors | MongoDB Atlas + Atlas Vector Search | Data and embeddings in one place ([ADR-0002](docs/adr/0002-mongodb-atlas-vector-search.md)) |
-| PDF parsing | unpdf (PDF.js for serverless) | Text per page, which citations need |
-| LLM + embeddings | Gemini via the Vercel AI SDK | Free tier; switching provider is one line ([ADR-0003](docs/adr/0003-gemini-via-vercel-ai-sdk.md)) |
-| Queue (V1) | BullMQ + Upstash Redis | Background ingestion with retries |
-| Tests + CI | Vitest, Playwright, GitHub Actions | Merges blocked unless everything passes |
+| PDF parsing | unpdf (PDF.js packaged for serverless) | Text per page, which citations depend on |
+| LLM + embeddings | Gemini via the Vercel AI SDK | Free tier; the provider can be swapped in one line ([ADR-0003](docs/adr/0003-gemini-via-vercel-ai-sdk.md)) |
+| Queue (V1) | BullMQ + Upstash Redis | Background ingestion with retries and progress |
+| Tests + CI | Vitest, Playwright, GitHub Actions | Merges blocked unless every check passes |
 
-## Eval results
+## Evaluation
 
-Retrieval and answer quality are measured on a hand-written eval set (30–50 questions over public PDFs, including questions whose answer is *not* in the documents). Results will be committed with every change to chunking, retrieval or prompts.
+Retrieval and answer quality are measured on a hand-written eval set: 30–50 questions over public PDFs, each with the page that answers it, including questions whose answer is *not* in the documents. Results are committed with every change to chunking, retrieval or prompts, so each change has before/after numbers.
 
 | Metric | Target | Baseline | Current |
 | --- | --- | --- | --- |
@@ -57,18 +57,15 @@ Retrieval and answer quality are measured on a hand-written eval set (30–50 qu
 
 ![Roadmap](docs/assets/roadmap.png)
 
-Scope and non-goals are in the [PRD](docs/PRD.md); each slice has a task file in [docs/tasks](docs/tasks/README.md).
+Scope and non-goals are in the [PRD](docs/PRD.md). Each slice of work has a task file with acceptance criteria in [docs/tasks](docs/tasks/README.md).
 
-## How this was built
+## Development practices
 
-DocuMind is built **AI-first but human-owned**. AI agents write most first drafts; I write the specs, read every test before code exists, review every diff, and own every design decision. One rule keeps it honest: **nothing merges that I can't explain line by line.**
-
-![AI-first workflow](docs/assets/ai-workflow.png)
-
-- Agents work from written context: [`AGENTS.md`](AGENTS.md) (stack, commands, rules, lessons learned), the [PRD](docs/PRD.md), [architecture](docs/ARCHITECTURE.md), [ADRs](docs/adr/README.md), [task files](docs/tasks/README.md) and [reusable prompts](docs/prompts/README.md).
-- The RAG core (the chunker, retrieval + prompt assembly with citations, and the eval script) is **written by hand** and only reviewed by AI.
-- UI, auth wiring, boilerplate and CI config are agent-first.
-- Every pull request includes an explain-back: 3–5 lines, in my own words, on how the change works.
+- **Tests first.** Every slice starts from its acceptance criteria and failing tests; the implementation follows.
+- **Small pull requests.** One task per PR, kept under ~300 changed lines, each with a short summary of how the change works.
+- **Decisions are recorded.** Every real choice has an [architecture decision record](docs/adr/README.md) with the alternatives considered.
+- **CI is the gate.** Lint (no warnings allowed), typecheck, unit tests with coverage and a production build must pass before anything merges.
+- **Retrieval changes are measured.** Chunking, retrieval and prompt changes ship with eval results.
 
 ## Run locally
 
@@ -82,21 +79,21 @@ cp .env.example .env.local   # then fill in the values
 npm run dev
 ```
 
-Open http://localhost:3000. `GET /api/health` reports which required environment variables are still missing (names only).
+Open http://localhost:3000. `GET /api/health` reports, by name only, any required environment variable that is missing or still holds a template placeholder such as `<db_username>`.
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Dev server |
-| `npm run check` | Lint + typecheck + unit tests (run before every commit) |
+| `npm run dev` | Development server |
+| `npm run check` | Lint + typecheck + unit tests |
 | `npm test` | Unit tests |
 | `npm run build` | Production build |
-| `npm run diagrams` | Re-render the architecture diagrams in `docs/assets/` |
+| `npm run diagrams` | Re-render the diagrams in `docs/assets/` |
 
 ### External services (all free tiers)
 
-1. **MongoDB Atlas:** create an M0 cluster, a database user, and allow your IP. Copy the connection string into `MONGODB_URI`.
+1. **MongoDB Atlas:** create an M0 cluster and a database user, and allow your IP address. Copy the connection string into `MONGODB_URI`, replacing both `<db_username>` and `<db_password>`.
 2. **Gemini API:** create a key at [Google AI Studio](https://aistudio.google.com/apikey) and set `GOOGLE_GENERATIVE_AI_API_KEY`.
-3. **Google OAuth:** create an OAuth client (Web) in Google Cloud Console with the redirect URI `http://localhost:3000/api/auth/callback/google`, and set `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`. Generate `AUTH_SECRET` with `npx auth secret`.
+3. **Google OAuth:** create an OAuth client (Web application) in Google Cloud Console with the redirect URI `http://localhost:3000/api/auth/callback/google`, then set `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`. Generate `AUTH_SECRET` with `npx auth secret`.
 
 ## Documentation
 
@@ -104,8 +101,8 @@ Open http://localhost:3000. `GET /api/health` reports which required environment
 | --- | --- |
 | [PRD](docs/PRD.md) | Problem, user, MVP scope, non-goals, success metrics |
 | [Architecture](docs/ARCHITECTURE.md) | Components, ingest and ask paths, data model, API, security |
-| [ADRs](docs/adr/README.md) | One record per real decision |
-| [Tasks](docs/tasks/README.md) | Feature slices with acceptance criteria |
+| [ADRs](docs/adr/README.md) | One record per significant decision |
+| [Tasks](docs/tasks/README.md) | Slices of work with acceptance criteria |
 | [Diagrams](docs/diagrams/README.md) | Sources for every image in this README |
 
 ## License

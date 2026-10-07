@@ -5,11 +5,11 @@
 
 ## Context
 
-The PRD promised uploads of up to 10 MB. Vercel Functions reject any request body over 4.5 MB with a `413` before our code runs, and that limit applies to route handlers and Server Actions alike. Uploads between 4.5 and 10 MB would work locally and fail in production.
+The first draft of the PRD allowed uploads of up to 10 MB. Vercel Functions reject any request body over 4.5 MB with a `413` before application code runs, and that limit applies to route handlers and Server Actions alike. Uploads between 4.5 and 10 MB would work locally and fail in production.
 
 ## Decision
 
-Cap uploads at **4 MB** (`LIMITS.maxUploadBytes`) for the MVP, checked on the server like every other limit. Extract text with `unpdf` (PDF.js packaged for serverless) inside the route.
+Cap uploads at **4 MB** (`LIMITS.maxUploadBytes`) for the MVP, checked on the server like every other limit. Extract text inside the route ([ADR-0007](0007-unpdf-for-text-extraction.md)).
 
 ## Alternatives considered
 

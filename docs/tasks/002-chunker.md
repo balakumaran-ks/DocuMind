@@ -1,4 +1,4 @@
-# 002 — Chunker (by hand)
+# 002 — Chunker
 
 **Goal:** split each page's text into overlapping chunks that never cross a page boundary ([ADR-0004](../adr/0004-page-bounded-chunking.md)).
 

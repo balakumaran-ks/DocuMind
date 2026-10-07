@@ -14,6 +14,6 @@
 
 Component tests (Vitest + Testing Library) for citation rendering and the upload error states.
 
-## Dependencies to request
+## New dependencies
 
 `next-auth` (Auth.js v5), `@testing-library/react`, `jsdom`

@@ -22,7 +22,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 
 1. `POST /api/documents` receives `multipart/form-data`.
 2. **Validate on the server:** session present, under 5 documents, size ≤ 4 MB ([ADR-0006](adr/0006-four-mb-upload-cap.md)), magic bytes `%PDF-`, page count ≤ 50.
-3. **Extract** text per page with `unpdf` (PDF.js packaged for serverless). Pages with no text are flagged (likely scanned).
+3. **Extract** text per page with `unpdf`, PDF.js packaged for serverless ([ADR-0007](adr/0007-unpdf-for-text-extraction.md)). Pages with no text are flagged (likely scanned).
 4. **Chunk** each page separately with overlap, so every chunk belongs to exactly one page ([ADR-0004](adr/0004-page-bounded-chunking.md)).
 5. **Hash** each chunk (SHA-256 of normalised text + embedding model). Chunks whose hash already exists reuse the stored vector.
 6. **Embed** new chunks in batches.
@@ -55,7 +55,7 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 | `chats` | `_id`, `userId`, `documentId`, `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
 | `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `feedback?` (V1), `createdAt` | `{ chatId, createdAt }` |
 
-`userId` is copied onto `pages`, `chunks` and `messages` on purpose: every query can filter by it directly, without a join, which is what makes rule 6 in `AGENTS.md` cheap to enforce.
+`userId` is copied onto `pages`, `chunks` and `messages` on purpose: every query can filter by it directly, without a join, which makes the rule "every query filters by owner" cheap to enforce and easy to review.
 
 ### Atlas Vector Search index (`chunks_vector`)
 
@@ -73,7 +73,7 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 
 | Method | Route | Purpose | Phase |
 | --- | --- | --- | --- |
-| `GET` | `/api/health` | Liveness + which env vars are missing (names only) | Setup ✅ |
+| `GET` | `/api/health` | Liveness, plus env vars that are missing or still hold a template placeholder (names only) | Setup ✅ |
 | `*` | `/api/auth/[...nextauth]` | Auth.js handlers | MVP |
 | `POST` | `/api/documents` | Upload + ingest a PDF | MVP |
 | `GET` | `/api/documents` | List the user's documents | MVP |
@@ -91,7 +91,7 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 - Every query and every vector search is filtered by the session's `userId`.
 - Document text is treated as data: wrapped in `<source>` tags and the system prompt says to ignore instructions inside it.
 - Citations are validated against the retrieved chunks, so the model cannot cite a page it never saw.
-- Secrets only in environment variables; `.env*` is git-ignored except `.env.example`.
+- Secrets only in environment variables; `.env*` is git-ignored except `.env.example`, and configuration errors report variable names, never values.
 
 ## Deployment
 

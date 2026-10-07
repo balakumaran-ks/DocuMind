@@ -5,7 +5,7 @@
 
 ## Context
 
-We need to store users, documents, page text, chat history and ~1–2k embedding vectors per user, and run filtered nearest-neighbour search. The stack goal is MERN, and everything must fit a free tier.
+The app needs to store users, documents, page text, chat history and ~1–2k embedding vectors per user, and run filtered nearest-neighbour search. The stack goal is MERN, and everything must fit a free tier.
 
 ## Decision
 
@@ -21,4 +21,4 @@ Store everything in MongoDB Atlas (M0 free cluster) and use Atlas Vector Search 
 
 - Vectors and metadata live in one document, so deleting a document deletes its vectors in the same place, and `userId` pre-filtering happens inside the search.
 - Keyword search for the Week 4 hybrid experiment can use Atlas Search on the same collection.
-- M0 limits (storage, index count) must be checked; per-user caps keep us well inside them.
+- M0 limits (storage, index count) must be checked; per-user caps keep usage well inside them.

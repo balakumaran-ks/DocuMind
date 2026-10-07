@@ -10,3 +10,4 @@ One short record per real choice. Copy `0000-template.md`, take the next number,
 | [0004](0004-page-bounded-chunking.md) | Page-bounded chunks with overlap | Accepted (provisional numbers) |
 | [0005](0005-synchronous-ingestion-in-mvp.md) | Ingest inside the upload request for the MVP | Accepted, to be superseded in V1 |
 | [0006](0006-four-mb-upload-cap.md) | 4 MB upload cap (Vercel body limit) | Accepted |
+| [0007](0007-unpdf-for-text-extraction.md) | unpdf for PDF text extraction | Accepted |

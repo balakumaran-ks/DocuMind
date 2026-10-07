@@ -5,7 +5,7 @@
 
 ## Context
 
-DocuMind is built by one person at about two hours a day. Every extra deployable unit costs setup, CI and debugging time. The UI needs streaming responses and the API is a handful of routes.
+DocuMind is built by a single developer with a limited weekly time budget. Every extra deployable unit costs setup, CI and debugging time. The UI needs streaming responses and the API is a handful of routes.
 
 ## Decision
 
