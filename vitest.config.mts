@@ -9,11 +9,25 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     coverage: {
       provider: "v8",
       include: ["src/**/*.ts"],
       exclude: ["src/**/*.test.ts"],
     },
+    projects: [
+      {
+        extends: true,
+        test: { name: "unit", include: ["src/**/*.test.ts"] },
+      },
+      {
+        extends: true,
+        test: {
+          name: "integration",
+          include: ["tests/**/*.test.ts"],
+          // Downloads the MongoDB binary once, before any integration test starts.
+          globalSetup: ["tests/integration/global-setup.ts"],
+        },
+      },
+    ],
   },
 });

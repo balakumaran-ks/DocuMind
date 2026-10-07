@@ -33,11 +33,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      # mongodb-memory-server downloads a MongoDB binary (~100 MB) on first use.
+      # mongodb-memory-server downloads a MongoDB binary on first use, into the
+      # folder set by config.mongodbMemoryServer.downloadDir in package.json.
       - name: Cache MongoDB binary for integration tests
         uses: actions/cache@v4
         with:
-          path: ~/.cache/mongodb-binaries
+          path: .cache/mongodb-binaries
           key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
           restore-keys: mongodb-binaries-${{ runner.os }}-
 

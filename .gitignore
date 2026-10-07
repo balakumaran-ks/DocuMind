@@ -50,3 +50,6 @@ next-env.d.ts
 /CLAUDE.md
 /GEMINI.md
 /.claude/
+
+# MongoDB binary for integration tests (config.mongodbMemoryServer in package.json)
+/.cache/
