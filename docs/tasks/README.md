@@ -5,7 +5,7 @@ The MVP is built in small slices. Each task file states the goal, the acceptance
 | # | Slice | Phase | Status |
 | --- | --- | --- | --- |
 | [000](000-setup.md) | Repository, docs, CI, scaffold | Setup | ✅ Done |
-| [001](001-upload-and-extract.md) | Upload a PDF, extract text per page | MVP | 001a in review, 001b next |
+| [001](001-upload-and-extract.md) | Upload a PDF, extract text per page | MVP | In review (001a, 001b) |
 | [002](002-chunker.md) | Page-bounded chunker with overlap | MVP | |
 | [003](003-embed-and-index.md) | Embed chunks, Atlas vector index with `userId` filter | MVP | |
 | [004](004-ask-route.md) | Ask route: retrieve, prompt with page tags, stream | MVP | |
