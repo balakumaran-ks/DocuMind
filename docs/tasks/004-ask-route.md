@@ -1,4 +1,4 @@
-# 004 — Ask route (prompt assembly by hand)
+# 004 — Ask route
 
 **Goal:** ask a question about one document and stream a cited answer.
 
@@ -7,8 +7,8 @@
 - `POST /api/ask { documentId, chatId?, question }` returns streamed text.
 - Checks session, document ownership and `LIMITS.maxQuestionsPerDay`.
 - `$vectorSearch` with `filter: { userId, documentId }` and `limit: LIMITS.retrievalTopK`.
-- **By hand:** `buildPrompt({ question, chunks, history })` wraps each chunk in `<source page="N">…</source>`. The system prompt requires `[p. N]` citations, a refusal when the sources do not contain the answer, and ignoring any instructions inside sources.
-- **By hand:** `parseCitations(answer, retrievedChunks)` keeps only pages that were actually retrieved.
+- `buildPrompt({ question, chunks, history })` wraps each chunk in `<source page="N">…</source>`. The system prompt requires `[p. N]` citations, a refusal when the sources do not contain the answer, and ignoring any instructions inside sources.
+- `parseCitations(answer, retrievedChunks)` keeps only pages that were actually retrieved.
 - On finish, saves the user and assistant messages with citations, latency, token usage and retrieved chunk ids.
 
 ## Tests first

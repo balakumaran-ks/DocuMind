@@ -18,6 +18,6 @@
 
 `src/lib/ai/embed.ts`, `src/lib/ingest.ts`, `scripts/create-indexes.ts`, `src/app/api/documents/route.ts`
 
-## Dependencies to request
+## New dependencies
 
 `ai`, `@ai-sdk/google`

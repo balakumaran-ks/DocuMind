@@ -10,7 +10,6 @@ Each diagram is a small HTML page: cards laid out with CSS, and connectors route
 | [data-model.html](data-model.html) | [data-model.png](../assets/data-model.png) | Collections, fields, keys, vector index |
 | [deployment.html](deployment.html) | [deployment.png](../assets/deployment.png) | CI pipeline, Vercel, free-tier services |
 | [roadmap.html](roadmap.html) | [roadmap.png](../assets/roadmap.png) | Six phases, four gates |
-| [ai-workflow.html](ai-workflow.html) | [ai-workflow.png](../assets/ai-workflow.png) | The AI-first build loop |
 
 ## Editing
 

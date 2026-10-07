@@ -26,6 +26,6 @@ Split into two PRs to stay under ~300 changed lines each.
 
 **Files likely touched:** `src/lib/db/client.ts`, `src/lib/db/documents.ts`, `src/lib/auth/user.ts`, `src/app/api/documents/route.ts`, `src/app/documents/[id]/page.tsx`, `.github/workflows/ci.yml`
 
-## Dependencies (approved)
+## New dependencies
 
 `unpdf` (001a); `mongodb`, `mongodb-memory-server` as a dev dependency (001b).

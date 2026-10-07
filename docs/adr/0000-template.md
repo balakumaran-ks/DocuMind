@@ -9,7 +9,7 @@ What problem forced a decision? What constraints matter?
 
 ## Decision
 
-What we chose, in one or two sentences.
+The choice, in one or two sentences.
 
 ## Alternatives considered
 
@@ -17,4 +17,4 @@ What we chose, in one or two sentences.
 
 ## Consequences
 
-What gets easier, what gets harder, and what would make us revisit this. For retrieval changes, include before/after eval numbers.
+What gets easier, what gets harder, and what would trigger a revisit. For retrieval changes, include before/after eval numbers.

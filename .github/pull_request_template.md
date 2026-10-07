@@ -2,15 +2,15 @@
 
 <!-- One or two lines. Link the task file: docs/tasks/NNN-*.md -->
 
-## Explain-back (required)
+## How it works
 
-<!-- 3–5 lines, in your own words, on how this works. If you can't write it, don't merge it. -->
+<!-- 3–5 lines on how the change works and why it is built this way. -->
 
 ## Checklist
 
 - [ ] Under ~300 changed lines
-- [ ] Tests written first and read before the implementation
+- [ ] Tests written first, covering the acceptance criteria
 - [ ] `npm run check` passes locally
-- [ ] Reviewed the diff myself, then with a second model (bugs + security)
+- [ ] Diff self-reviewed for correctness and security (user isolation, validation, secrets)
 - [ ] Ran `npm run eval` if this touches chunking, retrieval or prompts (results committed)
-- [ ] Anything the agent got wrong is added to `AGENTS.md`
+- [ ] Docs and ADRs updated if a decision changed
