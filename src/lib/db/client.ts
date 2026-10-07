@@ -1,5 +1,6 @@
 import { MongoClient, MongoNetworkError, MongoServerSelectionError, type Db, type MongoClientOptions } from "mongodb";
 import { readServerEnv } from "@/lib/env";
+import { ensureChunkIndexes } from "./chunks";
 import { ensureIndexes } from "./documents";
 
 /** How long to look for a reachable server before failing (the driver's default is 30 s). */
@@ -50,6 +51,7 @@ async function connect(): Promise<Connection> {
   }
   const db = client.db(env.mongodbDb);
   await ensureIndexes(db);
+  await ensureChunkIndexes(db);
   return { client, db };
 }
 

@@ -11,6 +11,10 @@ describe("LIMITS", () => {
     expect(LIMITS.retrievalTopK).toBe(5);
   });
 
+  it("embeds with at most two parallel calls, to stay inside free-tier rate limits", () => {
+    expect(LIMITS.embedMaxParallelCalls).toBe(2);
+  });
+
   it("matches the chunking sizes in ADR-0004", () => {
     expect(LIMITS.chunkSize).toBe(1200);
     expect(LIMITS.chunkOverlap).toBe(200);

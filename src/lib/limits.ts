@@ -17,6 +17,8 @@ export const LIMITS = {
   chunkSize: 1200,
   /** Characters shared by consecutive chunks of a page (ADR-0004). */
   chunkOverlap: 200,
+  /** Embedding requests allowed in flight at once, to stay inside free-tier rate limits. */
+  embedMaxParallelCalls: 2,
 } as const;
 
 export const ACCEPTED_MIME_TYPES = ["application/pdf"] as const;
