@@ -79,13 +79,17 @@ cp .env.example .env.local   # then fill in the values
 npm run dev
 ```
 
+The first integration-test run downloads a MongoDB binary into `.cache/mongodb-binaries` (about 800 MB on Windows, much less on Linux and macOS); later runs and `npm ci` reuse it.
+
 Open http://localhost:3000. `GET /api/health` reports, by name only, any required environment variable that is missing or still holds a template placeholder such as `<db_username>`.
 
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Development server |
-| `npm run check` | Lint + typecheck + unit tests |
-| `npm test` | Unit tests |
+| `npm run check` | Lint + typecheck + all tests |
+| `npm test` | Unit and integration tests |
+| `npm run test:unit` | Unit tests only (fast, no database) |
+| `npm run test:integration` | Integration tests against a temporary MongoDB |
 | `npm run build` | Production build |
 | `npm run diagrams` | Re-render the diagrams in `docs/assets/` |
 
