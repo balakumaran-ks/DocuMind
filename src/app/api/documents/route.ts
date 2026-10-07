@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { getUserId } from "@/lib/auth/user";
-import { getDb } from "@/lib/db/client";
+import { getDb, isDatabaseUnavailable } from "@/lib/db/client";
 import { countDocuments, insertDocumentWithPages } from "@/lib/db/documents";
 import { LIMITS, PDF_MAGIC_BYTES } from "@/lib/limits";
 import { countPages, extractPages, PdfReadError } from "@/lib/pdf/extract";
@@ -17,7 +17,8 @@ type ErrorCode =
   | "too_many_documents"
   | "too_many_pages"
   | "unreadable_pdf"
-  | "no_text";
+  | "no_text"
+  | "database_unavailable";
 
 function error(status: number, code: ErrorCode, message: string) {
   return Response.json({ error: { code, message } }, { status });
@@ -29,6 +30,17 @@ function error(status: number, code: ErrorCode, message: string) {
  * unless every check passes.
  */
 export async function POST(request: Request) {
+  try {
+    return await handleUpload(request);
+  } catch (cause) {
+    if (isDatabaseUnavailable(cause)) {
+      return error(503, "database_unavailable", "The database is unavailable right now. Please try again in a minute.");
+    }
+    throw cause;
+  }
+}
+
+async function handleUpload(request: Request) {
   const userId = await getUserId();
   if (!userId) return error(401, "unauthorized", "Sign in to upload documents.");
 

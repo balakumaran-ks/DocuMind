@@ -149,6 +149,16 @@ describe("POST /api/documents — rejections write nothing", () => {
     expect(await storedCounts()).toEqual({ documents: 0, pages: 0 });
   });
 
+  it("503 with a clear message when the database is unreachable, instead of hanging", async () => {
+    vi.stubEnv("MONGODB_URI", "mongodb://127.0.0.1:1/?serverSelectionTimeoutMS=300");
+    const started = Date.now();
+    const { status, body } = await upload({ name: "a.pdf", bytes: fixture("text-3-pages.pdf") });
+    expect(status).toBe(503);
+    expect(body.error.code).toBe("database_unavailable");
+    expect(body.error.message).toMatch(/try again/i);
+    expect(Date.now() - started).toBeLessThan(3000);
+  });
+
   it("returns a human-readable message with every error", async () => {
     const { body } = await upload({ name: "fake.pdf", bytes: fixture("not-a-pdf.pdf") });
     expect(body.error.message).toEqual(expect.any(String));
