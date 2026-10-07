@@ -11,6 +11,11 @@ describe("LIMITS", () => {
     expect(LIMITS.retrievalTopK).toBe(5);
   });
 
+  it("matches the chunking sizes in ADR-0004", () => {
+    expect(LIMITS.chunkSize).toBe(1200);
+    expect(LIMITS.chunkOverlap).toBe(200);
+  });
+
   it("uses the %PDF- signature for server-side type checks", () => {
     expect(String.fromCharCode(...PDF_MAGIC_BYTES)).toBe("%PDF-");
   });
