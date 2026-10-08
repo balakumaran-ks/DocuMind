@@ -1,5 +1,6 @@
 import { MongoClient, MongoNetworkError, MongoServerSelectionError, type Db, type MongoClientOptions } from "mongodb";
 import { readServerEnv } from "@/lib/env";
+import { ensureChatIndexes } from "./chats";
 import { ensureChunkIndexes } from "./chunks";
 import { ensureIndexes } from "./documents";
 
@@ -52,6 +53,7 @@ async function connect(): Promise<Connection> {
   const db = client.db(env.mongodbDb);
   await ensureIndexes(db);
   await ensureChunkIndexes(db);
+  await ensureChatIndexes(db);
   return { client, db };
 }
 

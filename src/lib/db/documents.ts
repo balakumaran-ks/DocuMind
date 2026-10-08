@@ -105,19 +105,22 @@ export async function markDocumentFailed(db: Db, userId: string, documentId: Obj
   await documents(db).updateOne({ _id: documentId, userId }, { $set: { status: "failed", error } });
 }
 
+/** A user's document, or null if it doesn't exist or isn't theirs. */
+export async function getDocument(db: Db, userId: string, documentId: string): Promise<StoredDocument | null> {
+  // Only the 24-hex-character form; ObjectId.isValid also accepts other shapes.
+  if (!/^[0-9a-f]{24}$/i.test(documentId)) return null;
+  return documents(db).findOne({ _id: new ObjectId(documentId), userId });
+}
+
 /** A user's document with its pages in order, or null if it doesn't exist or isn't theirs. */
 export async function getDocumentWithPages(
   db: Db,
   userId: string,
   documentId: string,
 ): Promise<{ document: StoredDocument; pages: StoredPage[] } | null> {
-  // Only the 24-hex-character form; ObjectId.isValid also accepts other shapes.
-  if (!/^[0-9a-f]{24}$/i.test(documentId)) return null;
-  const _id = new ObjectId(documentId);
-
-  const document = await documents(db).findOne({ _id, userId });
+  const document = await getDocument(db, userId, documentId);
   if (!document) return null;
 
-  const rows = await pages(db).find({ documentId: _id, userId }).sort({ pageNumber: 1 }).toArray();
+  const rows = await pages(db).find({ documentId: document._id, userId }).sort({ pageNumber: 1 }).toArray();
   return { document, pages: rows };
 }
