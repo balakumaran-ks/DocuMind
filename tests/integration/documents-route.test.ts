@@ -5,11 +5,16 @@ import { MongoClient, ObjectId, type Db } from "mongodb";
 import type { MongoMemoryServer } from "mongodb-memory-server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/documents/route";
-import { DEV_USER_ID } from "@/lib/auth/user";
 import { closeDb } from "@/lib/db/client";
 import { LIMITS } from "@/lib/limits";
 import { fakeEmbedder } from "./helpers/fake-embedder";
 import { startMongo, stubServerEnv } from "./helpers/mongo";
+
+const USER_ID = "google:test-user";
+
+// The signed-in user; set to null to test requests without a session.
+const session = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/auth/user", () => ({ getUserId: async () => session.userId }));
 
 // The route must never call the real embedding API in tests.
 const fake = vi.hoisted(() => ({
@@ -57,7 +62,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   stubServerEnv(mongo.getUri(), DB_NAME);
-  vi.stubEnv("NODE_ENV", "test");
+  session.userId = USER_ID;
   fake.current = fakeEmbedder();
   await Promise.all(["documents", "pages", "chunks"].map((name) => db.collection(name).deleteMany({})));
 });
@@ -88,7 +93,7 @@ describe("POST /api/documents — success", () => {
 
     const document = await db.collection("documents").findOne({ _id: new ObjectId(String(body.documentId)) });
     expect(document).toMatchObject({
-      userId: DEV_USER_ID,
+      userId: USER_ID,
       filename: "handbook.pdf",
       sizeBytes: bytes.length,
       sha256: createHash("sha256").update(bytes).digest("hex"),
@@ -99,11 +104,11 @@ describe("POST /api/documents — success", () => {
     });
     const chunks = await db.collection("chunks").find({ documentId: document?._id }).toArray();
     expect(chunks).toHaveLength(3);
-    expect(chunks.every((c) => c.userId === DEV_USER_ID && c.embedding.length === 4)).toBe(true);
+    expect(chunks.every((c) => c.userId === USER_ID && c.embedding.length === 4)).toBe(true);
 
     const pages = await db.collection("pages").find({ documentId: document?._id }).sort({ pageNumber: 1 }).toArray();
     expect(pages.map((p) => p.pageNumber)).toEqual([1, 2, 3]);
-    expect(pages.every((p) => p.userId === DEV_USER_ID)).toBe(true);
+    expect(pages.every((p) => p.userId === USER_ID)).toBe(true);
     expect(pages[0].text).toContain("Refunds are accepted within 30 days of delivery.");
   });
 
@@ -116,7 +121,7 @@ describe("POST /api/documents — success", () => {
 
 describe("POST /api/documents — rejections write nothing", () => {
   it("401 when there is no signed-in user", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+    session.userId = null;
     const { status, body } = await upload({ name: "a.pdf", bytes: fixture("text-3-pages.pdf") });
     expect(status).toBe(401);
     expect(body.error.code).toBe("unauthorized");

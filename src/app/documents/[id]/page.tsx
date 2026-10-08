@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getUserId } from "@/lib/auth/user";
 import { getDb } from "@/lib/db/client";
 import { getDocumentWithPages } from "@/lib/db/documents";
@@ -8,7 +8,7 @@ import { formatBytes } from "@/lib/limits";
 export default async function DocumentPage(props: PageProps<"/documents/[id]">) {
   const { id } = await props.params;
   const userId = await getUserId();
-  if (!userId) notFound();
+  if (!userId) redirect("/");
 
   const result = await getDocumentWithPages(await getDb(), userId, id);
   if (!result) notFound();

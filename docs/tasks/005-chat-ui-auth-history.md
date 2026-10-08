@@ -17,3 +17,18 @@ Component tests (Vitest + Testing Library) for citation rendering and the upload
 ## New dependencies
 
 `next-auth` (Auth.js v5), `@testing-library/react`, `jsdom`
+
+## Delivery
+
+Four pull requests, to keep each under ~300 changed lines:
+
+- **005a:** Google sign-in, the session-based `getUserId()`, `src/proxy.ts`, the `users` collection, the sign-in page and header.
+- **005b:** `GET /api/documents`, `DELETE /api/documents/:id`, `GET /api/documents/:id/pages/:n`, `GET /api/chats?documentId=`, `GET /api/chats/:id/messages`.
+- **005c:** the document list with upload, status and delete; component tests for the upload error states.
+- **005d:** the chat view with streaming, citation buttons and the page panel; component tests for citation rendering.
+
+Decisions made during the task:
+
+- The user id is `google:<Google account id>`, set in the `jwt` callback at sign-in. Without a database adapter Auth.js gives every sign-in a random id, which would separate users from their documents.
+- The development user is removed: local development signs in with Google too, and tests mock `getUserId`.
+- The chat view uses a small streaming hook over `fetch` instead of `useChat`. It keeps the ask route's plain text stream and `X-Chat-Id` header, avoids `@ai-sdk/react`, and shows only validated citations by reading the saved answer once the stream ends.
