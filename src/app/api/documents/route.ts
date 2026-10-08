@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 import { EmbeddingError, getEmbedder } from "@/lib/ai/embed";
 import { getUserId } from "@/lib/auth/user";
 import { getDb, isDatabaseUnavailable } from "@/lib/db/client";
-import { countDocuments, insertDocumentWithPages } from "@/lib/db/documents";
+import { unauthorized, withDatabaseErrors } from "@/lib/api/responses";
+import { countDocuments, insertDocumentWithPages, listDocuments } from "@/lib/db/documents";
 import { ingestDocument } from "@/lib/ingest";
 import { LIMITS, PDF_MAGIC_BYTES } from "@/lib/limits";
 import { countPages, extractPages, PdfReadError } from "@/lib/pdf/extract";
@@ -25,6 +26,27 @@ type ErrorCode =
 
 function error(status: number, code: ErrorCode, message: string, extra: Record<string, string> = {}) {
   return Response.json({ error: { code, message, ...extra } }, { status });
+}
+
+/** The signed-in user's documents, newest first. */
+export async function GET(_request: Request) {
+  return withDatabaseErrors(async () => {
+    const userId = await getUserId();
+    if (!userId) return unauthorized("Sign in to see your documents.");
+
+    const rows = await listDocuments(await getDb(), userId);
+    return Response.json({
+      documents: rows.map((document) => ({
+        id: document._id.toHexString(),
+        filename: document.filename,
+        pageCount: document.pageCount,
+        sizeBytes: document.sizeBytes,
+        status: document.status,
+        chunkCount: document.chunkCount ?? null,
+        createdAt: document.createdAt.toISOString(),
+      })),
+    });
+  });
 }
 
 /**

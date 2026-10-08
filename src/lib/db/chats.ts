@@ -62,6 +62,30 @@ export async function createChat(db: Db, input: { userId: string; documentId: Ob
   return chat;
 }
 
+/** The chats about one of the user's documents, most recently active first. */
+export async function listChats(db: Db, userId: string, documentId: ObjectId): Promise<StoredChat[]> {
+  return chats(db).find({ userId, documentId }).sort({ updatedAt: -1, _id: -1 }).toArray();
+}
+
+/** A user's chat by id, or null if it doesn't exist or isn't theirs. */
+export async function getChat(db: Db, userId: string, chatId: string): Promise<StoredChat | null> {
+  if (!/^[0-9a-f]{24}$/i.test(chatId)) return null;
+  return chats(db).findOne({ _id: new ObjectId(chatId), userId });
+}
+
+/** Every message of a user's chat, oldest first. */
+export async function listMessages(db: Db, userId: string, chatId: ObjectId): Promise<StoredMessage[]> {
+  return messages(db).find({ chatId, userId }).sort({ createdAt: 1, _id: 1 }).toArray();
+}
+
+/** Deletes a document's chats and their messages (messages first). */
+export async function deleteChatsForDocument(db: Db, userId: string, documentId: ObjectId): Promise<void> {
+  const chatIds = await chats(db).distinct("_id", { userId, documentId });
+  if (chatIds.length === 0) return;
+  await messages(db).deleteMany({ userId, chatId: { $in: chatIds } });
+  await chats(db).deleteMany({ userId, _id: { $in: chatIds } });
+}
+
 /** The chat's last `limit` messages, oldest first, as prompt history. */
 export async function recentMessages(db: Db, userId: string, chatId: ObjectId, limit: number): Promise<ChatTurn[]> {
   const rows = await messages(db)
