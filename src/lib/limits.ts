@@ -19,6 +19,12 @@ export const LIMITS = {
   chunkOverlap: 200,
   /** Embedding requests allowed in flight at once, to stay inside free-tier rate limits. */
   embedMaxParallelCalls: 2,
+  /** Nearest neighbours the vector search considers before keeping the top `retrievalTopK`. */
+  vectorNumCandidates: 100,
+  /** Earlier chat messages (questions and answers) sent with each new question. */
+  historyMessages: 6,
+  /** Longest question accepted by the ask route. */
+  maxQuestionChars: 1000,
 } as const;
 
 export const ACCEPTED_MIME_TYPES = ["application/pdf"] as const;

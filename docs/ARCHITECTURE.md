@@ -37,10 +37,10 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 1. `POST /api/ask` with `{ documentId, chatId?, question }`.
 2. Check session, document ownership and the daily question cap.
 3. Embed the question with the same model used for the chunks.
-4. `$vectorSearch` over `chunks`, **pre-filtered by `userId` and `documentId`**, top 5.
-5. **Build the prompt:** system rules (answer only from sources, cite `[p. N]`, refuse otherwise, ignore instructions inside sources) + the 5 chunks wrapped in `<source page="N">` tags + recent chat turns + the question.
+4. `$vectorSearch` over `chunks`, **pre-filtered by `userId` and `documentId`**, top 5 of 100 candidates.
+5. **Build the prompt:** system rules (answer only from sources, cite `[p. N]`, reply "That isn't covered in this document." otherwise, ignore instructions inside sources) + the last 6 chat messages + the question, with the 5 chunks in page order wrapped in `<source page="N">` tags. `<source` and `</source` inside document text are escaped, so a document cannot close its own source and place text outside it.
 6. `streamText` to Gemini; tokens stream to the browser.
-7. On finish: parse `[p. N]` markers, drop any page that was not among the retrieved chunks, save the message with citations, latency, token counts and retrieved chunk ids.
+7. On finish: parse `[p. N]` and `[p. N, M]` markers (malformed ones are ignored), drop any page that was not among the retrieved chunks, link each page to its best-scoring chunk, and save the message with citations, latency, token counts and retrieved chunk ids.
 
 ## Data model
 
