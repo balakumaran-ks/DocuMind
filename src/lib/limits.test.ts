@@ -15,6 +15,16 @@ describe("LIMITS", () => {
     expect(LIMITS.embedMaxParallelCalls).toBe(2);
   });
 
+  it("bounds what goes into each answer prompt", () => {
+    expect(LIMITS.historyMessages).toBe(6);
+    expect(LIMITS.maxQuestionChars).toBe(1000);
+  });
+
+  it("lets the vector search consider many more candidates than it returns", () => {
+    expect(LIMITS.vectorNumCandidates).toBe(100);
+    expect(LIMITS.vectorNumCandidates).toBeGreaterThanOrEqual(LIMITS.retrievalTopK * 10);
+  });
+
   it("matches the chunking sizes in ADR-0004", () => {
     expect(LIMITS.chunkSize).toBe(1200);
     expect(LIMITS.chunkOverlap).toBe(200);
