@@ -2,7 +2,6 @@ import { MongoClient, ObjectId, type Db } from "mongodb";
 import type { MongoMemoryServer } from "mongodb-memory-server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/ask/route";
-import { DEV_USER_ID } from "@/lib/auth/user";
 import { closeDb } from "@/lib/db/client";
 import { insertDocumentWithPages } from "@/lib/db/documents";
 import { ingestDocument } from "@/lib/ingest";
@@ -12,6 +11,12 @@ import { retrieveChunks } from "@/lib/rag/retrieve";
 import { fakeAnswerModel } from "./helpers/fake-answer-model";
 import { fakeEmbedder, vectorFor } from "./helpers/fake-embedder";
 import { startMongo, stubServerEnv } from "./helpers/mongo";
+
+const USER_ID = "google:test-user";
+
+// The signed-in user; set to null to test requests without a session.
+const session = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/auth/user", () => ({ getUserId: async () => session.userId }));
 
 // The route must never call the real embedding or answer APIs in tests.
 const fakes = vi.hoisted(() => ({
@@ -67,7 +72,7 @@ let db: Db;
 const PAGES = ["Applications open in March.", "Fees are due monthly.", "Late fees are 5 percent."];
 
 /** A ready document with one chunk per page, stored the way an upload stores it. */
-async function seedDocument(userId = DEV_USER_ID): Promise<ObjectId> {
+async function seedDocument(userId = USER_ID): Promise<ObjectId> {
   const pages = PAGES.map((text, i) => ({ pageNumber: i + 1, text, charCount: text.length, isEmpty: false }));
   const documentId = await insertDocumentWithPages(db, { userId, filename: "fees.pdf", sizeBytes: 1000, sha256: "x", pages });
   await ingestDocument({ db, embedder: fakeEmbedder().embedder, userId, documentId, pages });
@@ -116,7 +121,7 @@ beforeAll(async () => {
 
 beforeEach(async () => {
   stubServerEnv(mongo.getUri(), DB_NAME);
-  vi.stubEnv("NODE_ENV", "test");
+  session.userId = USER_ID;
   fakes.embedder = fakeEmbedder();
   fakes.answer = fakeAnswerModel();
   vi.mocked(retrieveChunks).mockClear();
@@ -153,7 +158,7 @@ describe("POST /api/ask — answering", () => {
     expect(fakes.embedder?.state.queries).toEqual(["When are fees due?"]);
     expect(retrieveChunks).toHaveBeenCalledTimes(1);
     expect(retrieveChunks).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: DEV_USER_ID, documentId, queryVector: vectorFor("When are fees due?", 4) }),
+      expect.objectContaining({ userId: USER_ID, documentId, queryVector: vectorFor("When are fees due?", 4) }),
     );
   });
 
@@ -181,17 +186,17 @@ describe("POST /api/ask — answering", () => {
     expect(await chats()).toEqual([
       expect.objectContaining({
         _id: chatId,
-        userId: DEV_USER_ID,
+        userId: USER_ID,
         documentId,
         title: "When are fees due?",
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date),
       }),
     ]);
-    expect(question).toMatchObject({ chatId, userId: DEV_USER_ID, role: "user", content: "When are fees due?" });
+    expect(question).toMatchObject({ chatId, userId: USER_ID, role: "user", content: "When are fees due?" });
     expect(answer).toMatchObject({
       chatId,
-      userId: DEV_USER_ID,
+      userId: USER_ID,
       role: "assistant",
       content: "Fees are due monthly [p. 2].",
       citations: [{ pageNumber: 2, chunkId: chunks[1]?._id }],
@@ -257,7 +262,7 @@ describe("POST /api/ask — answering", () => {
 
 describe("POST /api/ask — rejections", () => {
   it("401 when there is no signed-in user", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+    session.userId = null;
     const { status, json } = await ask({ documentId: new ObjectId().toHexString(), question: "q" });
     expect(status).toBe(401);
     expect(json().error.code).toBe("unauthorized");
@@ -312,7 +317,7 @@ describe("POST /api/ask — rejections", () => {
     const documentId = await seedDocument();
     const otherDocument = await seedDocument();
     const theirChat = { _id: new ObjectId(), userId: OTHER_USER, documentId, title: "t", createdAt: new Date(), updatedAt: new Date() };
-    const otherDocChat = { ...theirChat, _id: new ObjectId(), userId: DEV_USER_ID, documentId: otherDocument };
+    const otherDocChat = { ...theirChat, _id: new ObjectId(), userId: USER_ID, documentId: otherDocument };
     await db.collection("chats").insertMany([theirChat, otherDocChat]);
 
     for (const chat of [theirChat, otherDocChat]) {
@@ -325,7 +330,7 @@ describe("POST /api/ask — rejections", () => {
 
   it(`429 after ${LIMITS.maxQuestionsPerDay} questions today, without calling any model`, async () => {
     const documentId = await seedDocument();
-    await seedQuestions(LIMITS.maxQuestionsPerDay, DEV_USER_ID, new Date());
+    await seedQuestions(LIMITS.maxQuestionsPerDay, USER_ID, new Date());
 
     const { status, json } = await ask({ documentId: documentId.toHexString(), question: "One more?" });
     expect(status).toBe(429);
@@ -339,13 +344,13 @@ describe("POST /api/ask — rejections", () => {
 
   it("does not count yesterday's questions, answers, or other users' questions toward the cap", async () => {
     const documentId = await seedDocument();
-    await seedQuestions(LIMITS.maxQuestionsPerDay, DEV_USER_ID, new Date(startOfTodayUtc().getTime() - 1));
+    await seedQuestions(LIMITS.maxQuestionsPerDay, USER_ID, new Date(startOfTodayUtc().getTime() - 1));
     await seedQuestions(LIMITS.maxQuestionsPerDay, OTHER_USER, new Date());
-    await seedQuestions(LIMITS.maxQuestionsPerDay - 1, DEV_USER_ID, new Date());
+    await seedQuestions(LIMITS.maxQuestionsPerDay - 1, USER_ID, new Date());
     await db.collection("messages").insertOne({
       _id: new ObjectId(),
       chatId: new ObjectId(),
-      userId: DEV_USER_ID,
+      userId: USER_ID,
       role: "assistant",
       content: "an answer",
       createdAt: new Date(),

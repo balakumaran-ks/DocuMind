@@ -11,7 +11,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 | **Browser (React UI)** | Upload, document list, chat with streaming answers, citation side panel. |
 | **Next.js route handlers** (`src/app/api/*`) | Auth check, validation, orchestration. Thin: logic lives in `src/lib`. |
 | **`src/lib` core** | PDF extraction, chunker, embedder, retriever, prompt builder, citation parser. Framework-free and unit tested. |
-| **Auth.js** | Google OAuth, JWT session cookie. Every route resolves `userId` from the session. |
+| **Auth.js** | Google OAuth, JWT session cookie. Every route resolves `userId` from the session: `google:<Google account id>`, set at sign-in, because Auth.js assigns a random id per sign-in when there is no user database. `src/proxy.ts` redirects signed-out visitors from `/documents/*`; pages and routes still check the session themselves. |
 | **MongoDB Atlas** | Collections below, plus one Atlas Vector Search index on `chunks.embedding`. |
 | **Gemini API** (via Vercel AI SDK) | `gemini-embedding-2` for 768-dim embeddings; `gemini-3.5-flash` for answers. Both configurable. |
 | **V1: BullMQ + Upstash Redis + worker** | Moves ingestion out of the upload request; adds retries and progress. |
@@ -48,7 +48,7 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 
 | Collection | Key fields | Indexes |
 | --- | --- | --- |
-| `users` | `_id`, `email`, `name`, `image`, `createdAt` | `email` unique |
+| `users` | `_id` (the user id, e.g. `google:1082…`), `email`, `name`, `image`, `createdAt`, `lastSignInAt` | `_id` only; upserted on every sign-in |
 | `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `createdAt` | `{ userId, createdAt: -1 }` |
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
 | `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding: number[768]`, `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index** |
