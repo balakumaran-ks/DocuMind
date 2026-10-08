@@ -9,10 +9,11 @@ export function vectorFor(text: string, dims: number): number[] {
 
 /**
  * An Embedder that never calls a network service. `calls` records the texts of
- * each embedDocuments call; set `failWith` to make the next calls fail.
+ * each embedDocuments call and `queries` each embedQuery text; set `failWith`
+ * to make the next calls fail.
  */
 export function fakeEmbedder(dims = 4) {
-  const state = { calls: [] as string[][], failWith: null as Error | null };
+  const state = { calls: [] as string[][], queries: [] as string[], failWith: null as Error | null };
   const embedder: Embedder = {
     model: "fake-embedding-model",
     dimensions: dims,
@@ -23,6 +24,7 @@ export function fakeEmbedder(dims = 4) {
     },
     async embedQuery(text) {
       if (state.failWith) throw new EmbeddingError({ cause: state.failWith });
+      state.queries.push(text);
       return vectorFor(text, dims);
     },
   };

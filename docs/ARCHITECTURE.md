@@ -53,7 +53,7 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
 | `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding: number[768]`, `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index** |
 | `chats` | `_id`, `userId`, `documentId`, `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
-| `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `feedback?` (V1), `createdAt` | `{ chatId, createdAt }` |
+| `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `feedback?` (V1), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
 
 `userId` is copied onto `pages`, `chunks` and `messages` on purpose: every query can filter by it directly, without a join, which makes the rule "every query filters by owner" cheap to enforce and easy to review.
 
