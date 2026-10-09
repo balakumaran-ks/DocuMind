@@ -88,7 +88,7 @@ Open http://localhost:3000. `GET /api/health` reports, by name only, any require
 | `npm run dev` | Development server |
 | `npm run check` | Lint + typecheck + all tests |
 | `npm test` | Unit and integration tests |
-| `npm run test:unit` | Unit tests only (fast, no database) |
+| `npm run test:unit` | Unit and component tests (fast, no database; components render in jsdom) |
 | `npm run test:integration` | Integration tests against a temporary MongoDB |
 | `npm run build` | Production build |
 | `npm run db:indexes` | Create the Atlas Vector Search index (once per cluster) |

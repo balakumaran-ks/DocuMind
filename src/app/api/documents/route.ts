@@ -4,6 +4,7 @@ import { getUserId } from "@/lib/auth/user";
 import { getDb, isDatabaseUnavailable } from "@/lib/db/client";
 import { unauthorized, withDatabaseErrors } from "@/lib/api/responses";
 import { countDocuments, insertDocumentWithPages, listDocuments } from "@/lib/db/documents";
+import { toDocumentSummary } from "@/lib/documents/summary";
 import { ingestDocument } from "@/lib/ingest";
 import { LIMITS, PDF_MAGIC_BYTES } from "@/lib/limits";
 import { countPages, extractPages, PdfReadError } from "@/lib/pdf/extract";
@@ -35,17 +36,7 @@ export async function GET(_request: Request) {
     if (!userId) return unauthorized("Sign in to see your documents.");
 
     const rows = await listDocuments(await getDb(), userId);
-    return Response.json({
-      documents: rows.map((document) => ({
-        id: document._id.toHexString(),
-        filename: document.filename,
-        pageCount: document.pageCount,
-        sizeBytes: document.sizeBytes,
-        status: document.status,
-        chunkCount: document.chunkCount ?? null,
-        createdAt: document.createdAt.toISOString(),
-      })),
-    });
+    return Response.json({ documents: rows.map(toDocumentSummary) });
   });
 }
 

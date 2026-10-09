@@ -14,6 +14,9 @@ export async function SiteHeader() {
         </Link>
         {user && (
           <div className="flex items-center gap-4 text-sm">
+            <Link href="/documents" className="font-medium hover:text-indigo-600 dark:hover:text-indigo-400">
+              Documents
+            </Link>
             <span className="text-zinc-600 dark:text-zinc-400">{user.name ?? user.email}</span>
             <form
               action={async () => {
