@@ -20,12 +20,13 @@ Component tests (Vitest + Testing Library) for citation rendering and the upload
 
 ## Delivery
 
-Four pull requests, to keep each under ~300 changed lines:
+Five pull requests, to keep each under ~300 changed lines (the chat view was split in two):
 
 - **005a:** Google sign-in, the session-based `getUserId()`, `src/proxy.ts`, the `users` collection, the sign-in page and header.
 - **005b:** `GET /api/documents`, `DELETE /api/documents/:id`, `GET /api/documents/:id/pages/:n`, `GET /api/chats?documentId=`, `GET /api/chats/:id/messages`.
 - **005c:** the document list with upload, status and delete; component tests for the upload error states.
-- **005d:** the chat view with streaming, citation buttons and the page panel; component tests for citation rendering.
+- **005d:** citation rendering and the page panel; component tests for citation rendering.
+- **005e:** the chat view at `/documents/[id]`: history, streaming, new chat, and the panel opened from citations.
 
 Decisions made during the task:
 
