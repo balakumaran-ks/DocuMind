@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { auth, signIn } from "@/auth";
 
 const steps = [
@@ -22,14 +23,17 @@ export default async function Home() {
           page-level citations.
         </p>
         {user ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Signed in as <span className="font-medium text-zinc-900 dark:text-zinc-100">{user.name ?? user.email}</span>.
-          </p>
+          <Link
+            href="/documents"
+            className="w-fit rounded-xl bg-indigo-600 px-5 py-3 font-medium text-white shadow-sm hover:bg-indigo-500"
+          >
+            Go to your documents
+          </Link>
         ) : (
           <form
             action={async () => {
               "use server";
-              await signIn("google", { redirectTo: "/" });
+              await signIn("google", { redirectTo: "/documents" });
             }}
           >
             <button
