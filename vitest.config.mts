@@ -11,13 +11,18 @@ export default defineConfig({
     environment: "node",
     coverage: {
       provider: "v8",
-      include: ["src/**/*.ts"],
-      exclude: ["src/**/*.test.ts"],
+      include: ["src/**/*.{ts,tsx}"],
+      exclude: ["src/**/*.test.{ts,tsx}"],
     },
     projects: [
       {
         extends: true,
         test: { name: "unit", include: ["src/**/*.test.ts"] },
+      },
+      {
+        extends: true,
+        // React components, rendered in a simulated browser (jsdom).
+        test: { name: "components", include: ["src/**/*.test.tsx"], environment: "jsdom" },
       },
       {
         extends: true,
