@@ -1,5 +1,7 @@
 import { ObjectId, type Db } from "mongodb";
 import type { ExtractedPage } from "@/lib/pdf/extract";
+import { deleteChatsForDocument } from "./chats";
+import { deleteChunksForDocument } from "./chunks";
 
 export type DocumentStatus = "processing" | "ready" | "failed";
 
@@ -103,6 +105,37 @@ export async function markDocumentReady(
 
 export async function markDocumentFailed(db: Db, userId: string, documentId: ObjectId, error: string): Promise<void> {
   await documents(db).updateOne({ _id: documentId, userId }, { $set: { status: "failed", error } });
+}
+
+/** A user's documents, newest first. */
+export async function listDocuments(db: Db, userId: string): Promise<StoredDocument[]> {
+  return documents(db).find({ userId }).sort({ createdAt: -1, _id: -1 }).toArray();
+}
+
+/** One page of a user's document, or null if it doesn't exist or isn't theirs. */
+export async function getPage(
+  db: Db,
+  userId: string,
+  documentId: ObjectId,
+  pageNumber: number,
+): Promise<StoredPage | null> {
+  return pages(db).findOne({ documentId, userId, pageNumber });
+}
+
+/**
+ * Deletes a user's document with everything derived from it. The document row
+ * goes last, so if a step fails the document is still listed and can be
+ * deleted again. Returns false if it doesn't exist or isn't theirs.
+ */
+export async function deleteDocument(db: Db, userId: string, documentId: string): Promise<boolean> {
+  const document = await getDocument(db, userId, documentId);
+  if (!document) return false;
+
+  await deleteChunksForDocument(db, userId, document._id);
+  await pages(db).deleteMany({ documentId: document._id, userId });
+  await deleteChatsForDocument(db, userId, document._id);
+  await documents(db).deleteOne({ _id: document._id, userId });
+  return true;
 }
 
 /** A user's document, or null if it doesn't exist or isn't theirs. */
