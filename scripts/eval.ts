@@ -11,13 +11,16 @@
  * The database is EVAL_DB (default "documind_eval"), never the app's.
  * Calls are paced for the free tier (EVAL_EMBEDS_PER_MINUTE, default 90;
  * EVAL_ANSWERS_PER_MINUTE, default 4), and unchanged documents are reused.
+ * If a daily quota runs out, the run stops and saves what it has. Set
+ * GEMINI_CHAT_MODEL (e.g. gemma-4-31b-it) to evaluate another answer model.
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { generateText } from "ai";
 import { MongoClient, type Db, type ObjectId } from "mongodb";
 import { getAnswerModel } from "@/lib/ai/answer";
-import { getEmbedder, type Embedder } from "@/lib/ai/embed";
+import { EmbeddingRateLimitError, getEmbedder, type Embedder } from "@/lib/ai/embed";
+import { describeWait, isDailyQuota, quotaRetrySeconds } from "@/lib/ai/quota";
 import { ensureChunkIndexes } from "@/lib/db/chunks";
 import { ensureIndexes, insertDocumentWithPages } from "@/lib/db/documents";
 import { ensureVectorIndex, waitUntilQueryable } from "@/lib/db/search-index";
@@ -45,16 +48,23 @@ try {
   const documentIds = await ingest(db, [...new Set(questions.map((q) => q.documentFile))]);
 
   const cases: (EvalCase & { latencyMs: number })[] = [];
+  let stoppedEarly: string | null = null;
   for (const [i, q] of questions.entries()) {
     const started = Date.now();
     const documentId = documentIds.get(q.documentFile);
     if (!documentId) throw new Error(`No document for ${q.documentFile}`);
 
-    const queryVector = await embedder.embedQuery(q.question);
-    const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector });
-    const prompt = buildPrompt({ question: q.question, chunks, history: [] });
-    await reserveAnswer();
-    const { text } = await generateText({ model: getAnswerModel(), instructions: prompt.system, messages: prompt.messages });
+    let answered: { chunks: Awaited<ReturnType<typeof retrieveChunks>>; text: string };
+    try {
+      answered = await askOne(db, documentId, q.question);
+    } catch (error) {
+      const wait = quotaWait(error);
+      if (wait === null || !isDailyQuota(wait)) throw error;
+      stoppedEarly = `The free daily quota ran out at question ${i + 1} of ${questions.length}; it resets in ${describeWait(wait)}.`;
+      console.log(`\n${stoppedEarly} Saving the ${cases.length} results so far.`);
+      break;
+    }
+    const { chunks, text } = answered;
 
     const result = {
       ...q,
@@ -69,7 +79,8 @@ try {
 
   const summary = summarize(cases);
   const percent = (value: number | null) => (value === null ? "n/a" : `${Math.round(value * 100)}%`);
-  console.log(`\n${summary.questions} questions (${summary.answerable} answerable, ${summary.unanswerable} not)`);
+  console.log(`\nAnswer model: ${env.chatModel}${stoppedEarly ? " (partial run)" : ""}`);
+  console.log(`${summary.questions} questions (${summary.answerable} answerable, ${summary.unanswerable} not)`);
   console.log(`hit@5              ${percent(summary.hitAt5)}`);
   console.log(`citation accuracy  ${percent(summary.citationAccuracy)}`);
   console.log(`refusal rate       ${percent(summary.refusalRate)}`);
@@ -90,10 +101,38 @@ try {
   const runAt = new Date().toISOString();
   const name = `${runAt.slice(0, 10)}-${runAt.slice(11, 13)}${runAt.slice(14, 16)}.json`;
   const settings = { chatModel: env.chatModel, embeddingModel: env.embeddingModel, dimensions: env.embeddingDimensions, limits: LIMITS };
-  writeFileSync(new URL(name, resultsDir), `${JSON.stringify({ date: runAt.slice(0, 10), runAt, settings, summary, cases }, null, 2)}\n`);
+  const run = { date: runAt.slice(0, 10), runAt, settings, ...(stoppedEarly ? { stoppedEarly } : {}), summary, cases };
+  writeFileSync(new URL(name, resultsDir), `${JSON.stringify(run, null, 2)}\n`);
   console.log(`\nWrote evals/results/${name}`);
 } finally {
   await client.close();
+}
+
+/** Seconds to wait if `error` is a used-up quota (embedding or answer), otherwise null. */
+function quotaWait(error: unknown): number | null {
+  return error instanceof EmbeddingRateLimitError ? error.retryAfterSeconds : quotaRetrySeconds(error);
+}
+
+/**
+ * Embeds the question, retrieves, and answers it through the app's own code.
+ * A per-minute quota is waited out (up to three attempts); a daily one is thrown.
+ */
+async function askOne(db: Db, documentId: ObjectId, question: string) {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      const queryVector = await embedder.embedQuery(question);
+      const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector });
+      const prompt = buildPrompt({ question, chunks, history: [] });
+      await reserveAnswer();
+      const { text } = await generateText({ model: getAnswerModel(), instructions: prompt.system, messages: prompt.messages });
+      return { chunks, text };
+    } catch (error) {
+      const wait = quotaWait(error);
+      if (wait === null || isDailyQuota(wait) || attempt >= 3) throw error;
+      console.log(`    (waiting ${wait} s for the quota)`);
+      await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+    }
+  }
 }
 
 /** The most recently written results file, if any, for comparing this run with. */
