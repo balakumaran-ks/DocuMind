@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { isDailyQuota, quotaMessage } from "@/lib/ai/quota";
 import { errorMessageFrom, GENERIC_ERROR } from "@/lib/api/client";
 import type { DocumentSummary } from "@/lib/documents/summary";
 import { formatBytes, LIMITS } from "@/lib/limits";
@@ -104,7 +105,10 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
         const failure = apiErrorOf(body);
         if (response.status === 429) {
           update(id, { chunkCount: failure.chunkCount ?? null, embeddedChunks: failure.embeddedChunks ?? null });
-          waitMs = (failure.retryAfterSeconds ?? 60) * 1000;
+          const seconds = failure.retryAfterSeconds ?? 60;
+          // A daily quota: say so and leave the document resumable, rather than counting down for hours.
+          if (isDailyQuota(seconds)) return setError(failure.message);
+          waitMs = seconds * 1000;
         } else if (failure.code === "ingest_in_progress") {
           waitMs = BUSY_RETRY_MS;
         } else {
@@ -140,8 +144,10 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
       if (response.ok || response.status === 502) {
         const stored = response.status === 202 ? ((await response.json()) as { documentId: string; retryAfterSeconds?: number }) : null;
         await refresh();
-        // Larger than one batch: keep indexing from this tab.
-        if (stored) void index(stored.documentId, (stored.retryAfterSeconds ?? 0) * 1000);
+        // Larger than one batch: keep indexing from this tab, unless the daily quota is already used up.
+        const wait = stored?.retryAfterSeconds ?? 0;
+        if (stored && isDailyQuota(wait)) setError(quotaMessage("indexing", wait));
+        else if (stored) void index(stored.documentId, wait * 1000);
       }
     } catch {
       setError(OFFLINE);

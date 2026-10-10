@@ -1,7 +1,8 @@
-import { streamText } from "ai";
+import { streamText, type TextStreamPart, type ToolSet } from "ai";
 import { z } from "zod";
 import { getAnswerModel } from "@/lib/ai/answer";
 import { EmbeddingError, EmbeddingRateLimitError, getEmbedder } from "@/lib/ai/embed";
+import { quotaMessage, quotaRetrySeconds } from "@/lib/ai/quota";
 import { rateLimited } from "@/lib/api/responses";
 import { getUserId } from "@/lib/auth/user";
 import {
@@ -31,6 +32,7 @@ type ErrorCode =
   | "chat_not_found"
   | "daily_limit_reached"
   | "embedding_failed"
+  | "answer_failed"
   | "database_unavailable";
 
 function error(status: number, code: ErrorCode, message: string, extra: Record<string, string> = {}) {
@@ -99,10 +101,7 @@ async function handleAsk(request: Request) {
     queryVector = await getEmbedder().embedQuery(question);
   } catch (cause) {
     if (cause instanceof EmbeddingRateLimitError) {
-      return rateLimited(
-        `Too many questions this minute for the free quota. Try again in ${cause.retryAfterSeconds} seconds.`,
-        cause.retryAfterSeconds,
-      );
+      return rateLimited(quotaMessage("questions", cause.retryAfterSeconds), cause.retryAfterSeconds);
     }
     if (cause instanceof EmbeddingError) {
       return error(502, "embedding_failed", "Your question couldn't be processed. Please try again in a minute.");
@@ -112,8 +111,6 @@ async function handleAsk(request: Request) {
 
   const chunks = await retrieveChunks({ db, userId, documentId: document._id, queryVector });
   const history = existingChat ? await recentMessages(db, userId, existingChat._id, LIMITS.historyMessages) : [];
-  const chat = existingChat ?? (await createChat(db, { userId, documentId: document._id, title: question }));
-  await saveMessage(db, { chatId: chat._id, userId, role: "user", content: question });
 
   const prompt = buildPrompt({ question, chunks, history });
   const result = streamText({
@@ -121,23 +118,81 @@ async function handleAsk(request: Request) {
     instructions: prompt.system,
     messages: prompt.messages,
     onError: ({ error: cause }) => console.error("Answer generation failed", cause),
-    onEnd: async ({ text, totalUsage }) => {
-      try {
-        await saveMessage(db, {
-          chatId: chat._id,
-          userId,
-          role: "assistant",
-          content: text,
-          citations: parseCitations(text, chunks),
-          retrievedChunkIds: chunks.map((chunk) => chunk._id),
-          latencyMs: Date.now() - started,
-          usage: { inputTokens: totalUsage.inputTokens ?? null, outputTokens: totalUsage.outputTokens ?? null },
-        });
-      } catch (cause) {
-        console.error("Saving the answer failed", cause);
-      }
-    },
   });
 
-  return result.toTextStreamResponse({ headers: { "X-Chat-Id": chat._id.toHexString() } });
+  // Wait for the first piece of the answer, so a used-up quota or a model failure is still a
+  // proper error response, and a question that was never answered isn't saved or counted.
+  const parts = result.fullStream[Symbol.asyncIterator]();
+  const first = await firstText(parts);
+  if ("error" in first) {
+    await parts.return?.();
+    const wait = quotaRetrySeconds(first.error);
+    if (wait !== null) return rateLimited(quotaMessage("questions", wait), wait);
+    return error(502, "answer_failed", "The answer couldn't be generated. Please try again in a minute.");
+  }
+
+  const chat = existingChat ?? (await createChat(db, { userId, documentId: document._id, title: question }));
+  await saveMessage(db, { chatId: chat._id, userId, role: "user", content: question });
+
+  /** Saves the finished answer with what it was built from; a failure here mustn't break the stream. */
+  const owner = userId;
+  async function saveAnswer(text: string) {
+    try {
+      const usage = await result.totalUsage;
+      await saveMessage(db, {
+        chatId: chat._id,
+        userId: owner,
+        role: "assistant",
+        content: text,
+        citations: parseCitations(text, chunks),
+        retrievedChunkIds: chunks.map((chunk) => chunk._id),
+        latencyMs: Date.now() - started,
+        usage: { inputTokens: usage.inputTokens ?? null, outputTokens: usage.outputTokens ?? null },
+      });
+    } catch (cause) {
+      console.error("Saving the answer failed", cause);
+    }
+  }
+
+  const encoder = new TextEncoder();
+  let text = first.text;
+  const answer = new ReadableStream<Uint8Array>({
+    start(controller) {
+      if (text) controller.enqueue(encoder.encode(text));
+    },
+    // Each pull must enqueue, close or error: parts without text (step and finish markers) are skipped here,
+    // because a pull that does none of those is never repeated and the response would stall.
+    async pull(controller) {
+      for (;;) {
+        const { done, value } = await parts.next();
+        if (done) {
+          await saveAnswer(text);
+          return controller.close();
+        }
+        if (value.type === "error") return controller.error(value.error);
+        if (value.type === "text-delta" && value.text !== "") {
+          text += value.text;
+          return controller.enqueue(encoder.encode(value.text));
+        }
+      }
+    },
+    async cancel() {
+      await parts.return?.();
+    },
+  });
+  return new Response(answer, {
+    headers: { "Content-Type": "text/plain; charset=utf-8", "X-Chat-Id": chat._id.toHexString() },
+  });
+}
+
+type Parts = AsyncIterator<TextStreamPart<ToolSet>>;
+
+/** Reads until the first text of the answer, or the error that came instead. */
+async function firstText(parts: Parts): Promise<{ text: string } | { error: unknown }> {
+  for (;;) {
+    const { done, value } = await parts.next();
+    if (done) return { text: "" };
+    if (value.type === "error") return { error: value.error };
+    if (value.type === "text-delta" && value.text !== "") return { text: value.text };
+  }
 }
