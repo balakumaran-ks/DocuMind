@@ -12,6 +12,8 @@ export type ServerEnv = {
   mongodbDb: string;
   googleApiKey: string;
   chatModel: string;
+  /** Tried when the main answer model fails or its quota is used up; null if unset. */
+  chatFallbackModel: string | null;
   embeddingModel: string;
   embeddingDimensions: number;
   authSecret: string;
@@ -72,11 +74,15 @@ export function readServerEnv(source: Source = process.env): ServerEnv {
     );
   }
 
+  const chatModel = value("GEMINI_CHAT_MODEL") ?? ENV_DEFAULTS.GEMINI_CHAT_MODEL;
+  const fallback = value("GEMINI_FALLBACK_CHAT_MODEL");
+
   return {
     mongodbUri: value("MONGODB_URI")!,
     mongodbDb: value("MONGODB_DB") ?? ENV_DEFAULTS.MONGODB_DB,
     googleApiKey: value("GOOGLE_GENERATIVE_AI_API_KEY")!,
-    chatModel: value("GEMINI_CHAT_MODEL") ?? ENV_DEFAULTS.GEMINI_CHAT_MODEL,
+    chatModel,
+    chatFallbackModel: fallback && fallback !== chatModel ? fallback : null,
     embeddingModel: value("GEMINI_EMBEDDING_MODEL") ?? ENV_DEFAULTS.GEMINI_EMBEDDING_MODEL,
     embeddingDimensions,
     authSecret: value("AUTH_SECRET")!,

@@ -12,3 +12,4 @@ One short record per real choice. Copy `0000-template.md`, take the next number,
 | [0006](0006-four-mb-upload-cap.md) | 4 MB upload cap (Vercel body limit) | Accepted |
 | [0007](0007-unpdf-for-text-extraction.md) | unpdf for PDF text extraction | Accepted |
 | [0008](0008-batched-ingestion-for-the-free-tier.md) | Index large documents in batches driven by the browser | Accepted |
+| [0009](0009-gemma-answers-with-gemini-backup.md) | Answer with Gemma 4, backed up by Gemini 3.5 Flash | Accepted |

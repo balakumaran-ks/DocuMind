@@ -20,7 +20,8 @@ export type StoredMessage = {
   role: "user" | "assistant";
   content: string;
   createdAt: Date;
-  /** Answers only. */
+  /** Answers only. `model` is the answer model that wrote it (the main one or the backup). */
+  model?: string;
   citations?: Citation[];
   retrievedChunkIds?: ObjectId[];
   latencyMs?: number;
