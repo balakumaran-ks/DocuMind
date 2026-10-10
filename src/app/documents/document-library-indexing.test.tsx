@@ -99,6 +99,30 @@ describe("DocumentLibrary — indexing large documents", () => {
     expect(ingestCalls()).toBe(2);
   });
 
+  it("stops and explains, instead of counting down for hours, when the daily quota is used up", async () => {
+    ingestReplies = [
+      json(429, {
+        error: {
+          code: "rate_limited",
+          message: "The free daily indexing quota is used up. Indexing can resume in about 22 hours.",
+          retryAfterSeconds: 80_353,
+          chunkCount: 220,
+          embeddedChunks: 80,
+        },
+      }),
+    ];
+    const { user, row } = setup([doc()]);
+
+    await user.click(screen.getByRole("button", { name: /resume indexing/i }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe(
+      "The free daily indexing quota is used up. Indexing can resume in about 22 hours.",
+    );
+    expect(within(row()).getByText("Paused at 80 of 220 chunks")).toBeTruthy();
+    expect(within(row()).getByRole("button", { name: /resume indexing/i })).toBeTruthy();
+    expect(waits).toEqual([]);
+  });
+
   it("waits first when the upload itself hit the quota", async () => {
     fetchMock.mockImplementationOnce(async () =>
       json(202, { documentId: ID, pageCount: 31, emptyPages: [], status: "processing", chunkCount: 220, embeddedChunks: 0, retryAfterSeconds: 20 }),

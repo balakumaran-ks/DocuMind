@@ -19,6 +19,10 @@ describe("LIMITS", () => {
     expect(LIMITS.embedBatchSize).toBe(80);
   });
 
+  it("treats provider waits over five minutes as a daily quota", () => {
+    expect(LIMITS.quotaWaitMaxSeconds).toBe(300);
+  });
+
   it("lets one indexing request hold a document for 90 seconds", () => {
     expect(LIMITS.ingestLockSeconds).toBe(90);
   });
