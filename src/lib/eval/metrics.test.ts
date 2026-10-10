@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { REFUSAL } from "../rag/prompt";
-import { parseQuestions, scoreCase, summarize, type EvalCase } from "./metrics";
+import { caseCorrect, compareRuns, parseQuestions, scoreCase, summarize, type EvalCase } from "./metrics";
 
 const answerable = (overrides: Partial<EvalCase> = {}): EvalCase => ({
   question: "What is the standard deduction?",
@@ -72,6 +72,61 @@ describe("scoreCase", () => {
 
   it("does not score retrieval or citations for unanswerable questions", () => {
     expect(scoreCase(unanswerable())).toEqual({ hit: null, citationCorrect: null, refused: true });
+  });
+});
+
+describe("caseCorrect", () => {
+  it("counts an answerable question as correct when its citations are", () => {
+    expect(caseCorrect(answerable())).toBe(true);
+    expect(caseCorrect(answerable({ citedPages: [9] }))).toBe(false);
+    expect(caseCorrect(answerable({ answer: REFUSAL, citedPages: [] }))).toBe(false);
+  });
+
+  it("counts an unanswerable question as correct when it was refused", () => {
+    expect(caseCorrect(unanswerable())).toBe(true);
+    expect(caseCorrect(unanswerable({ answer: "Made up [p. 2].", citedPages: [2] }))).toBe(false);
+  });
+});
+
+describe("compareRuns", () => {
+  const q = (question: string, overrides: Partial<EvalCase> = {}) => answerable({ question, ...overrides });
+  const wrong = { citedPages: [9] };
+  const missed = { retrievedPages: [9, 10, 11, 12, 13] };
+
+  it("lists questions that became correct or incorrect since the previous run", () => {
+    const previous = [q("A", wrong), q("B"), q("C")];
+    const current = [q("A"), q("B", wrong), q("C")];
+    expect(compareRuns(previous, current)).toMatchObject({ fixed: ["A"], broken: ["B"] });
+  });
+
+  it("lists answerable questions whose retrieval started or stopped finding an expected page", () => {
+    const previous = [q("A", missed), q("B"), q("C")];
+    const current = [q("A"), q("B", missed), q("C")];
+    expect(compareRuns(previous, current)).toMatchObject({ hitGained: ["A"], hitLost: ["B"] });
+  });
+
+  it("ignores retrieval changes for unanswerable questions", () => {
+    const previous = [unanswerable({ question: "U" })];
+    const current = [unanswerable({ question: "U", retrievedPages: [7, 8, 9, 10, 11] })];
+    expect(compareRuns(previous, current)).toMatchObject({ hitGained: [], hitLost: [] });
+  });
+
+  it("matches questions by their text, and lists new and dropped ones separately", () => {
+    const previous = [q("A"), q("Old")];
+    const current = [q("A"), q("New", wrong)];
+    expect(compareRuns(previous, current)).toEqual({
+      fixed: [],
+      broken: [],
+      hitGained: [],
+      hitLost: [],
+      added: ["New"],
+      removed: ["Old"],
+    });
+  });
+
+  it("reports nothing for identical runs", () => {
+    const run = [q("A"), unanswerable()];
+    expect(compareRuns(run, run)).toEqual({ fixed: [], broken: [], hitGained: [], hitLost: [], added: [], removed: [] });
   });
 });
 
