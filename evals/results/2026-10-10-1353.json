@@ -1,0 +1,627 @@
+{
+  "date": "2026-10-10",
+  "runAt": "2026-10-10T13:53:17.973Z",
+  "settings": {
+    "chatModel": "gemma-4-31b-it",
+    "embeddingModel": "gemini-embedding-2",
+    "dimensions": 768,
+    "limits": {
+      "maxUploadBytes": 4194304,
+      "maxPagesPerDocument": 50,
+      "maxDocumentsPerUser": 5,
+      "maxQuestionsPerDay": 50,
+      "retrievalTopK": 5,
+      "chunkSize": 1200,
+      "chunkOverlap": 200,
+      "embedMaxParallelCalls": 2,
+      "embedBatchSize": 80,
+      "ingestLockSeconds": 90,
+      "quotaWaitMaxSeconds": 300,
+      "vectorNumCandidates": 100,
+      "historyMessages": 6,
+      "maxQuestionChars": 1000
+    }
+  },
+  "summary": {
+    "questions": 29,
+    "answerable": 23,
+    "unanswerable": 6,
+    "hitAt5": 0.9565217391304348,
+    "citationAccuracy": 0.8260869565217391,
+    "refusalRate": 1,
+    "falseRefusalRate": 0.08695652173913043
+  },
+  "failures": [
+    {
+      "question": "What is the corporate income tax rate?",
+      "error": "Failed after 3 attempts. Last error: AI_APICallError: Internal error encountered."
+    }
+  ],
+  "cases": [
+    {
+      "question": "What are the six Functions of the CSF Core?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        8,
+        9,
+        10,
+        20,
+        31
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        8,
+        31,
+        31,
+        9,
+        10
+      ],
+      "citedPages": [
+        8,
+        31
+      ],
+      "answer": "The six Functions of the CSF Core are GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND, and RECOVER [p. 8, 31].",
+      "latencyMs": 35425
+    },
+    {
+      "question": "What are the four CSF Tiers?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        12,
+        13,
+        29,
+        30,
+        31
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        12,
+        31,
+        29,
+        6,
+        13
+      ],
+      "citedPages": [
+        12,
+        31
+      ],
+      "answer": "The four CSF Tiers are Partial (Tier 1), Risk Informed (Tier 2), Repeatable (Tier 3), and Adaptive (Tier 4) [p. 12, 31].",
+      "latencyMs": 66619
+    },
+    {
+      "question": "What is the difference between a Current Profile and a Target Profile?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        11,
+        31
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        11,
+        12,
+        11,
+        31,
+        12
+      ],
+      "citedPages": [
+        11,
+        12,
+        31
+      ],
+      "answer": "A Current Profile specifies the Core outcomes an organization is currently achieving, or attempting to achieve, and characterizes the extent to which they are being achieved [p. 11]. It can be used to communicate known opportunities for improvement and cybersecurity capabilities to external stakeholders [p. 12].\n\nIn contrast, a Target Profile specifies the prioritized desired outcomes selected to achieve cybersecurity risk management objectives [p. 11, 31]. A Target Profile considers threat intelligence trends, new technology adoption, and new requirements [p. 11], and can be used to express expectations and requirements to third parties, partners, and suppliers [p. 12].",
+      "latencyMs": 37837
+    },
+    {
+      "question": "What was the Cybersecurity Framework called before version 2.0?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        2
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        6,
+        2,
+        32,
+        1,
+        5
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 106737
+    },
+    {
+      "question": "Why is GOVERN shown in the center of the CSF Functions wheel?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        9
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        9,
+        8,
+        8,
+        9,
+        10
+      ],
+      "citedPages": [
+        9
+      ],
+      "answer": "GOVERN is positioned in the center of the wheel because it informs how an organization will implement the other five Functions [p. 9].",
+      "latencyMs": 76908
+    },
+    {
+      "question": "Which CSF subcategory covers creating and testing backups of data?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        25
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        10,
+        20,
+        28,
+        8,
+        20
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 107149
+    },
+    {
+      "question": "Who was the director of NIST when CSF 2.0 was published?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        1,
+        2,
+        32,
+        6,
+        3
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 54668
+    },
+    {
+      "question": "How many organizations worldwide have adopted the CSF?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        7,
+        5,
+        7,
+        2,
+        3
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 58450
+    },
+    {
+      "question": "What is the 2025 standard deduction for a single filer?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        24,
+        25,
+        26
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        1,
+        24,
+        24,
+        26,
+        25
+      ],
+      "citedPages": [
+        25
+      ],
+      "answer": "For most people, the 2025 standard deduction for a single filer is $15,750 [p. 25]. For single filers who are blind or were born before January 2, 1961, the deduction is $17,750 if one box is checked and $19,750 if two boxes are checked [p. 25].",
+      "latencyMs": 245894
+    },
+    {
+      "question": "What is the maximum enhanced deduction for seniors?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        1,
+        26
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        26,
+        26,
+        1,
+        26,
+        26
+      ],
+      "citedPages": [
+        1,
+        26
+      ],
+      "answer": "The maximum amount of the enhanced deduction for seniors is $6,000, or $12,000 if married filing jointly and both spouses are eligible [p. 1, 26].",
+      "latencyMs": 35228
+    },
+    {
+      "question": "How many filing statuses are there, and what are they?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        5,
+        6
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        6,
+        6,
+        6,
+        6,
+        31
+      ],
+      "citedPages": [
+        6
+      ],
+      "answer": "There are five filing statuses: Single, Head of household, Qualifying surviving spouse, Married filing jointly, and Married filing separately [p. 6].",
+      "latencyMs": 80897
+    },
+    {
+      "question": "What are the five tests for a child to be your qualifying child?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        12,
+        13
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        13,
+        12,
+        12,
+        13,
+        15
+      ],
+      "citedPages": [
+        12
+      ],
+      "answer": "The five tests for a child to be a qualifying child are Relationship, Age, Residency, Support, and Joint return [p. 12].",
+      "latencyMs": 88878
+    },
+    {
+      "question": "For how many years after a spouse's death can you file as a qualifying surviving spouse?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        6,
+        10
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        10,
+        11,
+        10,
+        11,
+        11
+      ],
+      "citedPages": [
+        10
+      ],
+      "answer": "You may be eligible to use the qualifying surviving spouse filing status for 2 years following the year your spouse died [p. 10].",
+      "latencyMs": 56114
+    },
+    {
+      "question": "What is the federal minimum wage?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        4,
+        24,
+        1,
+        26,
+        5
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 76961
+    },
+    {
+      "question": "Which CSF subcategory covers maintaining inventories of hardware?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        23
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        10,
+        20,
+        23,
+        23,
+        18
+      ],
+      "citedPages": [
+        23
+      ],
+      "answer": "The CSF subcategory Asset Management (ID.AM) covers maintaining inventories of hardware [p. 23].",
+      "latencyMs": 30269
+    },
+    {
+      "question": "What does the GV.SC category cover?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        18,
+        20,
+        22,
+        23
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        22,
+        18,
+        10,
+        20,
+        22
+      ],
+      "citedPages": [
+        20,
+        22,
+        18
+      ],
+      "answer": "The GV.SC category covers Cybersecurity Supply Chain Risk Management [p. 20]. It involves organizational stakeholders identifying, establishing, managing, monitoring, and improving cyber supply chain risk management processes [p. 22]. This includes:\n\n* Establishing a C-SCRM program, strategy, objectives, policies, and processes agreed to by stakeholders [p. 22].\n* Establishing, communicating, and coordinating cybersecurity roles and responsibilities for partners, customers, and suppliers [p. 22].\n* Prioritizing and knowing suppliers based on criticality [p. 22].\n* Integrating C-SCRM into risk assessment, improvement processes, and both enterprise and cybersecurity risk management [p. 22].\n\nAdditionally, the subcategories within GV.SC provide a connection between outcomes focusing purely on cybersecurity and other outcomes [p. 18].",
+      "latencyMs": 74386
+    },
+    {
+      "question": "What does subcategory RS.MI-01 require?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        27
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        10,
+        27,
+        27,
+        20,
+        14
+      ],
+      "citedPages": [
+        27
+      ],
+      "answer": "Subcategory RS.MI-01 requires that incidents are contained [p. 27].",
+      "latencyMs": 34400
+    },
+    {
+      "question": "What are the steps for creating and using a CSF Organizational Profile?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        11,
+        12
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        12,
+        12,
+        11,
+        5,
+        11
+      ],
+      "citedPages": [
+        12
+      ],
+      "answer": "The steps for creating and using a CSF Organizational Profile are:\n\n1. **Scope the Organizational Profile**: Define the scope by documenting high-level assumptions and facts [p. 12].\n2. **Gather information**: Collect the information required to prepare the profile [p. 12].\n3. **Create the Organizational Profile**: Document the necessary information for selected CSF outcomes [p. 12]. When planning and prioritizing the Target Profile, organizations should consider a Community Profile and the risk implications of the Current Profile [p. 12].\n4. **Analyze gaps and create an action plan**: Perform a gap analysis to identify differences between the Target and Current Profiles and develop a prioritized action plan to address them [p. 12].\n5. **Implement the action plan and update the profile**: Follow the action plan to move toward the Target Profile and update the Organizational Profile [p. 12].",
+      "latencyMs": 255798
+    },
+    {
+      "question": "Where can suggestions for new Informative References for CSF 2.0 be sent?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        14
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        2,
+        14,
+        3,
+        20,
+        32
+      ],
+      "citedPages": [
+        14
+      ],
+      "answer": "Suggestions for new Informative References for CSF 2.0 can be shared with NIST at olir@nist.gov [p. 14].",
+      "latencyMs": 34931
+    },
+    {
+      "question": "Which NIST framework was developed to help address risks from artificial intelligence?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        19
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        19,
+        2,
+        1,
+        6,
+        32
+      ],
+      "citedPages": [
+        19
+      ],
+      "answer": "The NIST Artificial Intelligence Risk Management Framework (AI RMF) was developed to help address risks from artificial intelligence [p. 19].",
+      "latencyMs": 40510
+    },
+    {
+      "question": "When will NIST release CSF 3.0?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        2,
+        6,
+        1,
+        32,
+        3
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 99248
+    },
+    {
+      "question": "What is the minimum amount of net earnings from self-employment that requires you to file a return?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        5
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        5,
+        4,
+        5,
+        4,
+        5
+      ],
+      "citedPages": [
+        5
+      ],
+      "answer": "You must file a return if you had net earnings from self-employment of at least $400 [p. 5].",
+      "latencyMs": 50896
+    },
+    {
+      "question": "When is a person considered to reach age 65?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        3,
+        23,
+        26
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        3,
+        3,
+        23,
+        23,
+        26
+      ],
+      "citedPages": [
+        3,
+        23
+      ],
+      "answer": "A person is considered to reach age 65 on the day before their 65th birthday [p. 3, 23].",
+      "latencyMs": 66350
+    },
+    {
+      "question": "What are the requirements to file as head of household?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        8,
+        9
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        10,
+        9,
+        8,
+        8,
+        9
+      ],
+      "citedPages": [
+        8,
+        9,
+        10
+      ],
+      "answer": "To file as head of household, you must meet all of the following requirements:\n\n*   You must be unmarried or considered unmarried on the last day of the year [p. 8]. To be considered unmarried, you must file a separate return (such as single, head of household, or married filing separately) and pay more than half the cost of keeping up your home for the tax year [p. 8].\n*   You must pay more than half the cost of keeping up a home for the year [p. 8]. Included costs are food eaten in the home, utilities, repairs, insurance on the home, real estate taxes, mortgage interest, and rent [p. 9]. Costs that are not included are transportation, life insurance, vacations, medical treatment, education, clothing, and the value of services from you or a household member [p. 9].\n*   A qualifying person must have lived with you in the home for more than half the year, though temporary absences like school are excepted [p. 8]. However, a dependent parent does not have to live with you [p. 8].\n\nQualifying persons include:\n*   A qualifying child (such as a grandchild, son, or daughter) who lived with you more than half the year and meets other tests, provided the child is single or is married and can be claimed as a dependent [p. 10].\n*   A father or mother if you can claim them as a dependent [p. 10].",
+      "latencyMs": 63944
+    },
+    {
+      "question": "Under the age test, how old can a qualifying child who is a student be?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        12,
+        13
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        13,
+        18,
+        13,
+        13,
+        13
+      ],
+      "citedPages": [
+        13
+      ],
+      "answer": "To meet the age test, a student must be under age 24 at the end of the year and younger than you (or your spouse if filing jointly) [p. 13].",
+      "latencyMs": 95901
+    },
+    {
+      "question": "Under a multiple support agreement, what share of a person's support must you provide to claim them?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        21
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        21,
+        19,
+        16,
+        21,
+        12
+      ],
+      "citedPages": [
+        21
+      ],
+      "answer": "Under a multiple support agreement, you can claim a person as a dependent if you individually provide more than 10% of their support [p. 21].",
+      "latencyMs": 36301
+    },
+    {
+      "question": "If your filing status is married filing separately, how much gross income requires you to file a return?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        2
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        4,
+        2,
+        4,
+        4,
+        25
+      ],
+      "citedPages": [
+        2
+      ],
+      "answer": "For a taxpayer with a filing status of married filing separately of any age, a return must be filed if gross income was at least $5 [p. 2].",
+      "latencyMs": 54015
+    },
+    {
+      "question": "How much is the child tax credit per child?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        1,
+        13,
+        15,
+        1,
+        18
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 64307
+    },
+    {
+      "question": "How do I renew a U.S. passport?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        12,
+        23,
+        3,
+        28,
+        2
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 39734
+    }
+  ]
+}

@@ -13,6 +13,11 @@
  * EVAL_ANSWERS_PER_MINUTE, default 4), and unchanged documents are reused.
  * If a daily quota runs out, the run stops and saves what it has. Set
  * GEMINI_CHAT_MODEL (e.g. gemma-4-31b-it) to evaluate another answer model.
+ *
+ *   npm run eval -- --rescore
+ *
+ * re-scores the latest saved run against the current questions file without
+ * calling any model, after expected pages are corrected.
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -40,6 +45,14 @@ const env = readServerEnv();
 const embedder = paced(getEmbedder(), Number(process.env.EVAL_EMBEDS_PER_MINUTE ?? 90));
 const reserveAnswer = perMinuteBudget(Number(process.env.EVAL_ANSWERS_PER_MINUTE ?? 4), "answer");
 const questions = parseQuestions(readFileSync(new URL("questions.jsonl", root), "utf8"));
+const resultsDir = new URL("results/", root);
+mkdirSync(resultsDir, { recursive: true });
+
+if (process.argv.includes("--rescore")) {
+  rescore();
+  process.exit(0);
+}
+
 const client = await MongoClient.connect(env.mongodbUri, { appName: "documind-eval" });
 
 try {
@@ -49,6 +62,7 @@ try {
 
   const cases: (EvalCase & { latencyMs: number })[] = [];
   let stoppedEarly: string | null = null;
+  const failures: { question: string; error: string }[] = [];
   for (const [i, q] of questions.entries()) {
     const started = Date.now();
     const documentId = documentIds.get(q.documentFile);
@@ -59,10 +73,16 @@ try {
       answered = await askOne(db, documentId, q.question);
     } catch (error) {
       const wait = quotaWait(error);
-      if (wait === null || !isDailyQuota(wait)) throw error;
-      stoppedEarly = `The free daily quota ran out at question ${i + 1} of ${questions.length}; it resets in ${describeWait(wait)}.`;
-      console.log(`\n${stoppedEarly} Saving the ${cases.length} results so far.`);
-      break;
+      if (wait !== null && isDailyQuota(wait)) {
+        stoppedEarly = `The free daily quota ran out at question ${i + 1} of ${questions.length}; it resets in ${describeWait(wait)}.`;
+        console.log(`\n${stoppedEarly} Saving the ${cases.length} results so far.`);
+        break;
+      }
+      // The provider kept failing on this question: record it and carry on, so one outage doesn't lose the run.
+      const message = error instanceof Error ? error.message : String(error);
+      failures.push({ question: q.question, error: message });
+      console.log(`${String(i + 1).padStart(2)}. ${q.question}\n    FAILED · ${message.slice(0, 90)}`);
+      continue;
     }
     const { chunks, text } = answered;
 
@@ -77,20 +97,35 @@ try {
     console.log(`${String(i + 1).padStart(2)}. ${q.question}\n    retrieved ${result.retrievedPages.join(",")} · cited ${result.citedPages.join(",") || "-"} · ${text.slice(0, 90).replace(/\s+/g, " ")}`);
   }
 
-  const summary = summarize(cases);
+  const settings = { chatModel: env.chatModel, embeddingModel: env.embeddingModel, dimensions: env.embeddingDimensions, limits: LIMITS };
+  report({ settings, cases, ...(stoppedEarly ? { stoppedEarly } : {}), ...(failures.length > 0 ? { failures } : {}) });
+} finally {
+  await client.close();
+}
+
+type Run = {
+  settings: { chatModel: string };
+  cases: EvalCase[];
+  stoppedEarly?: string;
+  failures?: { question: string; error: string }[];
+  rescoredFrom?: string;
+};
+
+/** Prints the scores and the changes since the latest saved run, then saves this run. */
+function report(run: Run) {
+  const summary = summarize(run.cases);
   const percent = (value: number | null) => (value === null ? "n/a" : `${Math.round(value * 100)}%`);
-  console.log(`\nAnswer model: ${env.chatModel}${stoppedEarly ? " (partial run)" : ""}`);
+  console.log(`\nAnswer model: ${run.settings.chatModel}${run.stoppedEarly ? " (partial run)" : ""}`);
   console.log(`${summary.questions} questions (${summary.answerable} answerable, ${summary.unanswerable} not)`);
+  if (run.failures) console.log(`provider errors    ${run.failures.length} question(s) not scored`);
   console.log(`hit@5              ${percent(summary.hitAt5)}`);
   console.log(`citation accuracy  ${percent(summary.citationAccuracy)}`);
   console.log(`refusal rate       ${percent(summary.refusalRate)}`);
   console.log(`false refusals     ${percent(summary.falseRefusalRate)}`);
 
-  const resultsDir = new URL("results/", root);
-  mkdirSync(resultsDir, { recursive: true });
   const previous = latestResults(resultsDir);
   if (previous) {
-    const changes = compareRuns(previous.cases, cases);
+    const changes = compareRuns(previous.run.cases, run.cases);
     console.log(`\nSince ${previous.name}:`);
     for (const [label, questions] of Object.entries(changes)) {
       if (questions.length > 0) console.log(`  ${label}: ${questions.map((question) => `\n    - ${question}`).join("")}`);
@@ -99,13 +134,26 @@ try {
   }
 
   const runAt = new Date().toISOString();
-  const name = `${runAt.slice(0, 10)}-${runAt.slice(11, 13)}${runAt.slice(14, 16)}.json`;
-  const settings = { chatModel: env.chatModel, embeddingModel: env.embeddingModel, dimensions: env.embeddingDimensions, limits: LIMITS };
-  const run = { date: runAt.slice(0, 10), runAt, settings, ...(stoppedEarly ? { stoppedEarly } : {}), summary, cases };
-  writeFileSync(new URL(name, resultsDir), `${JSON.stringify(run, null, 2)}\n`);
+  const name = `${runAt.slice(0, 10)}-${runAt.slice(11, 13)}${runAt.slice(14, 16)}${run.rescoredFrom ? "-rescored" : ""}.json`;
+  const { cases, ...rest } = run;
+  writeFileSync(new URL(name, resultsDir), `${JSON.stringify({ date: runAt.slice(0, 10), runAt, ...rest, summary, cases }, null, 2)}\n`);
   console.log(`\nWrote evals/results/${name}`);
-} finally {
-  await client.close();
+}
+
+/**
+ * Re-scores the latest saved run against the current questions file, without
+ * calling any model: for when expected pages in the answer key are corrected.
+ */
+function rescore() {
+  const latest = latestResults(resultsDir);
+  if (!latest) throw new Error("No saved results to rescore.");
+  const current = new Map(questions.map((q) => [q.question, q]));
+  const cases = latest.run.cases.flatMap((c) => {
+    const q = current.get(c.question);
+    return q ? [{ ...c, expectedPages: q.expectedPages, answerable: q.answerable }] : [];
+  });
+  console.log(`Rescoring ${latest.name} against evals/questions.jsonl (no model calls).`);
+  report({ ...latest.run, cases, rescoredFrom: latest.name });
 }
 
 /** Seconds to wait if `error` is a used-up quota (embedding or answer), otherwise null. */
@@ -128,23 +176,24 @@ async function askOne(db: Db, documentId: ObjectId, question: string) {
       return { chunks, text };
     } catch (error) {
       const wait = quotaWait(error);
-      if (wait === null || isDailyQuota(wait) || attempt >= 3) throw error;
-      console.log(`    (waiting ${wait} s for the quota)`);
-      await new Promise((resolve) => setTimeout(resolve, wait * 1000));
+      if ((wait !== null && isDailyQuota(wait)) || attempt >= 3) throw error;
+      // A per-minute quota says how long to wait; anything else (such as a 500) gets a short pause.
+      const seconds = wait ?? 15;
+      console.log(`    (attempt ${attempt} failed; waiting ${seconds} s)`);
+      await new Promise((resolve) => setTimeout(resolve, seconds * 1000));
     }
   }
 }
 
 /** The most recently written results file, if any, for comparing this run with. */
-function latestResults(dir: URL): { name: string; cases: EvalCase[] } | null {
+function latestResults(dir: URL): { name: string; run: Run } | null {
   const files = readdirSync(dir)
     .filter((name) => name.endsWith(".json"))
     .map((name) => ({ name, mtime: statSync(new URL(name, dir)).mtimeMs }))
     .sort((a, b) => b.mtime - a.mtime);
   const latest = files[0];
   if (!latest) return null;
-  const { cases } = JSON.parse(readFileSync(new URL(latest.name, dir), "utf8")) as { cases: EvalCase[] };
-  return { name: latest.name, cases };
+  return { name: latest.name, run: JSON.parse(readFileSync(new URL(latest.name, dir), "utf8")) as Run };
 }
 
 /**
