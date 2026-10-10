@@ -1,6 +1,7 @@
+import { APICallError, RetryError } from "ai";
 import { MockEmbeddingModelV4 } from "ai/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { createEmbedder, EmbeddingError, getEmbedder } from "./embed";
+import { createEmbedder, EmbeddingError, EmbeddingRateLimitError, getEmbedder } from "./embed";
 
 const DIMS = 4;
 
@@ -85,6 +86,68 @@ describe("createEmbedder", () => {
     const error = await embedderWith(model).embedDocuments(["a"]).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(EmbeddingError);
     expect((error as EmbeddingError).cause).toBeInstanceOf(Error);
+  });
+});
+
+describe("createEmbedder — free-tier quota", () => {
+  const quotaError = (message: string) =>
+    new APICallError({
+      message,
+      url: "https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-2:batchEmbedContents",
+      requestBodyValues: {},
+      statusCode: 429,
+      isRetryable: true,
+    });
+
+  const failingWith = (error: unknown) =>
+    createEmbedder({
+      model: new MockEmbeddingModelV4({
+        doEmbed: async () => {
+          throw error;
+        },
+      }),
+      modelName: "test-embedding-model",
+      dimensions: DIMS,
+      maxRetries: 0,
+    });
+
+  it("reports a 429 as EmbeddingRateLimitError with the wait Gemini asks for, rounded up", async () => {
+    const error = await failingWith(quotaError("You exceeded your current quota. Please retry in 32.918780451s."))
+      .embedDocuments(["a"])
+      .catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(EmbeddingRateLimitError);
+    expect((error as EmbeddingRateLimitError).retryAfterSeconds).toBe(33);
+  });
+
+  it("is still an EmbeddingError, so existing handling keeps working", async () => {
+    const error = await failingWith(quotaError("quota")).embedQuery("q").catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(EmbeddingError);
+  });
+
+  it("waits a minute when Gemini doesn't say how long", async () => {
+    const error = await failingWith(quotaError("You exceeded your current quota.")).embedDocuments(["a"]).catch((e: unknown) => e);
+    expect((error as EmbeddingRateLimitError).retryAfterSeconds).toBe(60);
+  });
+
+  it("recognises a 429 that arrives wrapped in the SDK's RetryError", async () => {
+    const wrapped = new RetryError({
+      message: "Failed after 3 attempts.",
+      reason: "maxRetriesExceeded",
+      errors: [quotaError("Please retry in 3.3s."), quotaError("Please retry in 41.2s.")],
+    });
+    const error = await failingWith(wrapped).embedDocuments(["a"]).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(EmbeddingRateLimitError);
+    expect((error as EmbeddingRateLimitError).retryAfterSeconds).toBe(42);
+  });
+
+  it("does not treat other failures as rate limits", async () => {
+    const serverError = new APICallError({ message: "Internal error", url: "x", requestBodyValues: {}, statusCode: 500 });
+    const error = await failingWith(serverError).embedDocuments(["a"]).catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(EmbeddingError);
+    expect(error).not.toBeInstanceOf(EmbeddingRateLimitError);
   });
 });
 

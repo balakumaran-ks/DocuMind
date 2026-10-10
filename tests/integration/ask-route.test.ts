@@ -2,6 +2,7 @@ import { MongoClient, ObjectId, type Db } from "mongodb";
 import type { MongoMemoryServer } from "mongodb-memory-server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/ask/route";
+import { EmbeddingRateLimitError } from "@/lib/ai/embed";
 import { closeDb } from "@/lib/db/client";
 import { insertDocumentWithPages } from "@/lib/db/documents";
 import { ingestDocument } from "@/lib/ingest";
@@ -366,6 +367,19 @@ describe("POST /api/ask — rejections", () => {
     const { status, json } = await ask({ documentId: documentId.toHexString(), question: "q" });
     expect(status).toBe(502);
     expect(json().error.code).toBe("embedding_failed");
+    expect(await chats()).toHaveLength(0);
+    expect(await messages()).toHaveLength(0);
+  });
+
+  it("429 with how long to wait when the free embedding quota is used up, saving nothing", async () => {
+    const documentId = await seedDocument();
+    if (fakes.embedder) fakes.embedder.state.failWith = new EmbeddingRateLimitError({ retryAfterSeconds: 20 });
+    const { status, headers, json } = await ask({ documentId: documentId.toHexString(), question: "q" });
+
+    expect(status).toBe(429);
+    expect(headers.get("retry-after")).toBe("20");
+    expect(json().error).toMatchObject({ code: "rate_limited", retryAfterSeconds: 20 });
+    expect(json().error.message).toMatch(/20 seconds/);
     expect(await chats()).toHaveLength(0);
     expect(await messages()).toHaveLength(0);
   });
