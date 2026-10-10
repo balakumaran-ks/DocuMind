@@ -1,5 +1,5 @@
 import { createGoogle, type GoogleEmbeddingModelOptions } from "@ai-sdk/google";
-import { embedMany, type EmbeddingModel } from "ai";
+import { APICallError, embedMany, RetryError, type EmbeddingModel } from "ai";
 import { readServerEnv } from "@/lib/env";
 import { LIMITS } from "@/lib/limits";
 
@@ -22,6 +22,28 @@ export class EmbeddingError extends Error {
   }
 }
 
+/** The provider's quota is used up for now; try again after `retryAfterSeconds`. */
+export class EmbeddingRateLimitError extends EmbeddingError {
+  readonly retryAfterSeconds: number;
+
+  constructor(options: { retryAfterSeconds: number; cause?: unknown }) {
+    super({ cause: options.cause, message: `The free embedding quota is used up. Try again in ${options.retryAfterSeconds} seconds.` });
+    this.name = "EmbeddingRateLimitError";
+    this.retryAfterSeconds = options.retryAfterSeconds;
+  }
+}
+
+/** Gemini asks for a wait when a quota is exceeded ("Please retry in 32.9s"); a minute if it doesn't say. */
+const DEFAULT_RETRY_SECONDS = 60;
+
+/** Seconds to wait if `error` is a 429 (possibly wrapped by the SDK's retries), otherwise null. */
+export function quotaRetrySeconds(error: unknown): number | null {
+  if (RetryError.isInstance(error)) return quotaRetrySeconds(error.lastError);
+  if (!APICallError.isInstance(error) || error.statusCode !== 429) return null;
+  const hint = /retry in ([\d.]+)\s*s/i.exec(error.message)?.[1];
+  return hint ? Math.ceil(Number(hint)) : DEFAULT_RETRY_SECONDS;
+}
+
 type TaskType = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";
 
 export function createEmbedder(options: {
@@ -29,8 +51,10 @@ export function createEmbedder(options: {
   modelName: string;
   dimensions: number;
   maxParallelCalls?: number;
+  /** Retries for transient failures; the SDK's default when omitted. */
+  maxRetries?: number;
 }): Embedder {
-  const { model, modelName, dimensions, maxParallelCalls = LIMITS.embedMaxParallelCalls } = options;
+  const { model, modelName, dimensions, maxParallelCalls = LIMITS.embedMaxParallelCalls, maxRetries } = options;
 
   async function embed(values: string[], taskType: TaskType): Promise<number[][]> {
     if (values.length === 0) return [];
@@ -42,12 +66,14 @@ export function createEmbedder(options: {
         model,
         values,
         maxParallelCalls,
+        ...(maxRetries === undefined ? {} : { maxRetries }),
         providerOptions: {
           google: { taskType, outputDimensionality: dimensions } satisfies GoogleEmbeddingModelOptions,
         },
       }));
     } catch (cause) {
-      throw new EmbeddingError({ cause });
+      const retryAfterSeconds = quotaRetrySeconds(cause);
+      throw retryAfterSeconds === null ? new EmbeddingError({ cause }) : new EmbeddingRateLimitError({ retryAfterSeconds, cause });
     }
 
     // A vector of the wrong size would be silently unsearchable in the index.

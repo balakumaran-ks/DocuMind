@@ -14,9 +14,12 @@ export type StoredDocument = {
   pageCount: number;
   status: DocumentStatus;
   createdAt: Date;
-  /** Set once embedded (status "ready"). */
+  /** Set once the chunks are stored; `embeddedChunks` counts those with a vector. */
   chunkCount?: number;
+  embeddedChunks?: number;
   embeddingModel?: string;
+  /** While set and in the future, one request is embedding this document's next batch. */
+  ingestLockedUntil?: Date;
   /** Why ingestion failed (status "failed"). */
   error?: string;
 };
@@ -99,12 +102,52 @@ export async function markDocumentReady(
 ): Promise<void> {
   await documents(db).updateOne(
     { _id: documentId, userId },
-    { $set: { status: "ready", ...details }, $unset: { error: "" } },
+    { $set: { status: "ready", ...details, embeddedChunks: details.chunkCount }, $unset: { error: "", ingestLockedUntil: "" } },
   );
 }
 
+/** Records indexing progress on a document that is still being embedded. */
+export async function markDocumentProgress(
+  db: Db,
+  userId: string,
+  documentId: ObjectId,
+  progress: { chunkCount: number; embeddedChunks: number; embeddingModel: string },
+): Promise<void> {
+  await documents(db).updateOne({ _id: documentId, userId }, { $set: { status: "processing", ...progress } });
+}
+
 export async function markDocumentFailed(db: Db, userId: string, documentId: ObjectId, error: string): Promise<void> {
-  await documents(db).updateOne({ _id: documentId, userId }, { $set: { status: "failed", error } });
+  await documents(db).updateOne(
+    { _id: documentId, userId },
+    { $set: { status: "failed", error }, $unset: { ingestLockedUntil: "" } },
+  );
+}
+
+/**
+ * Atomically claims a processing document for one indexing request, unless
+ * another request holds an unexpired claim. Returns null if it can't be claimed.
+ */
+export async function claimForIngestion(
+  db: Db,
+  userId: string,
+  documentId: ObjectId,
+  seconds: number,
+): Promise<StoredDocument | null> {
+  const now = new Date();
+  return documents(db).findOneAndUpdate(
+    {
+      _id: documentId,
+      userId,
+      status: "processing",
+      $or: [{ ingestLockedUntil: { $exists: false } }, { ingestLockedUntil: { $lte: now } }],
+    },
+    { $set: { ingestLockedUntil: new Date(now.getTime() + seconds * 1000) } },
+    { returnDocument: "after" },
+  );
+}
+
+export async function releaseIngestion(db: Db, userId: string, documentId: ObjectId): Promise<void> {
+  await documents(db).updateOne({ _id: documentId, userId }, { $unset: { ingestLockedUntil: "" } });
 }
 
 /** A user's documents, newest first. */

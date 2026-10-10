@@ -1,6 +1,6 @@
 # 0005. Ingest inside the upload request for the MVP
 
-- **Status:** Accepted, to be superseded in V1
+- **Status:** Superseded by [0008](0008-batched-ingestion-for-the-free-tier.md) for documents larger than one batch
 - **Date:** 2026-09-30
 
 ## Context
