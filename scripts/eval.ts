@@ -13,7 +13,7 @@
  * EVAL_ANSWERS_PER_MINUTE, default 4), and unchanged documents are reused.
  */
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { generateText } from "ai";
 import { MongoClient, type Db, type ObjectId } from "mongodb";
 import { getAnswerModel } from "@/lib/ai/answer";
@@ -22,7 +22,7 @@ import { ensureChunkIndexes } from "@/lib/db/chunks";
 import { ensureIndexes, insertDocumentWithPages } from "@/lib/db/documents";
 import { ensureVectorIndex, waitUntilQueryable } from "@/lib/db/search-index";
 import { readServerEnv } from "@/lib/env";
-import { parseQuestions, summarize, type EvalCase } from "@/lib/eval/metrics";
+import { compareRuns, parseQuestions, summarize, type EvalCase } from "@/lib/eval/metrics";
 import { ingestDocument } from "@/lib/ingest";
 import { LIMITS } from "@/lib/limits";
 import { countPages, extractPages } from "@/lib/pdf/extract";
@@ -75,14 +75,37 @@ try {
   console.log(`refusal rate       ${percent(summary.refusalRate)}`);
   console.log(`false refusals     ${percent(summary.falseRefusalRate)}`);
 
-  const date = new Date().toISOString().slice(0, 10);
-  mkdirSync(new URL("results/", root), { recursive: true });
-  const file = new URL(`results/${date}.json`, root);
+  const resultsDir = new URL("results/", root);
+  mkdirSync(resultsDir, { recursive: true });
+  const previous = latestResults(resultsDir);
+  if (previous) {
+    const changes = compareRuns(previous.cases, cases);
+    console.log(`\nSince ${previous.name}:`);
+    for (const [label, questions] of Object.entries(changes)) {
+      if (questions.length > 0) console.log(`  ${label}: ${questions.map((question) => `\n    - ${question}`).join("")}`);
+    }
+    if (Object.values(changes).every((questions) => questions.length === 0)) console.log("  no per-question changes");
+  }
+
+  const runAt = new Date().toISOString();
+  const name = `${runAt.slice(0, 10)}-${runAt.slice(11, 13)}${runAt.slice(14, 16)}.json`;
   const settings = { chatModel: env.chatModel, embeddingModel: env.embeddingModel, dimensions: env.embeddingDimensions, limits: LIMITS };
-  writeFileSync(file, `${JSON.stringify({ date, settings, summary, cases }, null, 2)}\n`);
-  console.log(`\nWrote evals/results/${date}.json`);
+  writeFileSync(new URL(name, resultsDir), `${JSON.stringify({ date: runAt.slice(0, 10), runAt, settings, summary, cases }, null, 2)}\n`);
+  console.log(`\nWrote evals/results/${name}`);
 } finally {
   await client.close();
+}
+
+/** The most recently written results file, if any, for comparing this run with. */
+function latestResults(dir: URL): { name: string; cases: EvalCase[] } | null {
+  const files = readdirSync(dir)
+    .filter((name) => name.endsWith(".json"))
+    .map((name) => ({ name, mtime: statSync(new URL(name, dir)).mtimeMs }))
+    .sort((a, b) => b.mtime - a.mtime);
+  const latest = files[0];
+  if (!latest) return null;
+  const { cases } = JSON.parse(readFileSync(new URL(latest.name, dir), "utf8")) as { cases: EvalCase[] };
+  return { name: latest.name, cases };
 }
 
 /**

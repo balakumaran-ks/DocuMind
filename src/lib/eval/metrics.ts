@@ -56,6 +56,29 @@ export function scoreCase(c: EvalCase): { hit: boolean | null; citationCorrect: 
   };
 }
 
+/** Answerable: the citations are correct. Unanswerable: the question was refused. */
+export function caseCorrect(c: EvalCase): boolean {
+  const score = scoreCase(c);
+  return c.answerable ? score.citationCorrect === true : score.refused;
+}
+
+/** Per-question changes between two runs, matched by question text. */
+export function compareRuns(previous: EvalCase[], current: EvalCase[]) {
+  const before = new Map(previous.map((c) => [c.question, c]));
+  const after = new Map(current.map((c) => [c.question, c]));
+  const both = current.filter((c) => before.has(c.question)).map((c) => ({ was: before.get(c.question) as EvalCase, now: c }));
+  const hit = (c: EvalCase) => scoreCase(c).hit === true;
+
+  return {
+    fixed: both.filter(({ was, now }) => !caseCorrect(was) && caseCorrect(now)).map(({ now }) => now.question),
+    broken: both.filter(({ was, now }) => caseCorrect(was) && !caseCorrect(now)).map(({ now }) => now.question),
+    hitGained: both.filter(({ was, now }) => now.answerable && !hit(was) && hit(now)).map(({ now }) => now.question),
+    hitLost: both.filter(({ was, now }) => now.answerable && hit(was) && !hit(now)).map(({ now }) => now.question),
+    added: current.filter((c) => !before.has(c.question)).map((c) => c.question),
+    removed: previous.filter((c) => !after.has(c.question)).map((c) => c.question),
+  };
+}
+
 const rate = (count: number, total: number) => (total === 0 ? null : count / total);
 
 /** Overall scores: hit@5, citation accuracy and false refusals over answerable questions; refusals over the rest. */
