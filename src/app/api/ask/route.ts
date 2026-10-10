@@ -1,7 +1,8 @@
 import { streamText } from "ai";
 import { z } from "zod";
 import { getAnswerModel } from "@/lib/ai/answer";
-import { EmbeddingError, getEmbedder } from "@/lib/ai/embed";
+import { EmbeddingError, EmbeddingRateLimitError, getEmbedder } from "@/lib/ai/embed";
+import { rateLimited } from "@/lib/api/responses";
 import { getUserId } from "@/lib/auth/user";
 import {
   countQuestionsSince,
@@ -97,6 +98,12 @@ async function handleAsk(request: Request) {
   try {
     queryVector = await getEmbedder().embedQuery(question);
   } catch (cause) {
+    if (cause instanceof EmbeddingRateLimitError) {
+      return rateLimited(
+        `Too many questions this minute for the free quota. Try again in ${cause.retryAfterSeconds} seconds.`,
+        cause.retryAfterSeconds,
+      );
+    }
     if (cause instanceof EmbeddingError) {
       return error(502, "embedding_failed", "Your question couldn't be processed. Please try again in a minute.");
     }

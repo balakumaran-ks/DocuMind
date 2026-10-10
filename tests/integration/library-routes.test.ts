@@ -106,6 +106,7 @@ describe("GET /api/documents", () => {
         sizeBytes: 2048,
         status: "failed",
         chunkCount: 2,
+        embeddedChunks: 2,
         createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       },
       expect.objectContaining({ id: older.toHexString(), filename: "older.pdf", status: "ready", chunkCount: 2 }),
@@ -116,7 +117,7 @@ describe("GET /api/documents", () => {
     await seedDocument();
     const { body } = await read(await listDocuments(get("/api/documents")));
     expect(Object.keys(body.documents[0]).sort()).toEqual(
-      ["chunkCount", "createdAt", "filename", "id", "pageCount", "sizeBytes", "status"].sort(),
+      ["chunkCount", "createdAt", "embeddedChunks", "filename", "id", "pageCount", "sizeBytes", "status"].sort(),
     );
   });
 

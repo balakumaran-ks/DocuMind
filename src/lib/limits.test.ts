@@ -15,6 +15,14 @@ describe("LIMITS", () => {
     expect(LIMITS.embedMaxParallelCalls).toBe(2);
   });
 
+  it("embeds at most 80 chunks per request, under the free tier's 100 per minute", () => {
+    expect(LIMITS.embedBatchSize).toBe(80);
+  });
+
+  it("lets one indexing request hold a document for 90 seconds", () => {
+    expect(LIMITS.ingestLockSeconds).toBe(90);
+  });
+
   it("bounds what goes into each answer prompt", () => {
     expect(LIMITS.historyMessages).toBe(6);
     expect(LIMITS.maxQuestionChars).toBe(1000);

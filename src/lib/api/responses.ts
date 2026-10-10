@@ -1,8 +1,19 @@
 import { isDatabaseUnavailable } from "@/lib/db/client";
 
 /** The error shape every route returns: `{ error: { code, message, ...extra } }`. */
-export function errorResponse(status: number, code: string, message: string, extra: Record<string, string> = {}) {
-  return Response.json({ error: { code, message, ...extra } }, { status });
+export function errorResponse(
+  status: number,
+  code: string,
+  message: string,
+  extra: Record<string, string | number> = {},
+  headers?: HeadersInit,
+) {
+  return Response.json({ error: { code, message, ...extra } }, { status, headers });
+}
+
+/** 429 for a used-up provider quota, with the wait in the body and in Retry-After. */
+export function rateLimited(message: string, retryAfterSeconds: number, extra: Record<string, number> = {}) {
+  return errorResponse(429, "rate_limited", message, { retryAfterSeconds, ...extra }, { "Retry-After": String(retryAfterSeconds) });
 }
 
 export const unauthorized = (message = "Sign in to continue.") => errorResponse(401, "unauthorized", message);

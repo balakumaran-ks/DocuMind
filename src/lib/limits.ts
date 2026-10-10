@@ -19,6 +19,10 @@ export const LIMITS = {
   chunkOverlap: 200,
   /** Embedding requests allowed in flight at once, to stay inside free-tier rate limits. */
   embedMaxParallelCalls: 2,
+  /** Chunks embedded per request; the Gemini free tier allows 100 embedded texts per minute. */
+  embedBatchSize: 80,
+  /** How long one indexing request may hold a document before another may take over. */
+  ingestLockSeconds: 90,
   /** Nearest neighbours the vector search considers before keeping the top `retrievalTopK`. */
   vectorNumCandidates: 100,
   /** Earlier chat messages (questions and answers) sent with each new question. */

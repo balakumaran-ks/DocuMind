@@ -25,10 +25,9 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 3. **Extract** text per page with `unpdf`, PDF.js packaged for serverless ([ADR-0007](adr/0007-unpdf-for-text-extraction.md)). Pages with no text are flagged (likely scanned).
 4. **Chunk** each page separately with overlap, so every chunk belongs to exactly one page ([ADR-0004](adr/0004-page-bounded-chunking.md)).
 5. **Hash** each chunk (SHA-256 of normalised text + embedding model). Chunks whose hash this user already has reuse the stored vector.
-6. **Embed** new chunks in batches.
-7. **Store** `pages` and `chunks`, then set the document `status: "ready"`.
-
-In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingestion-in-mvp.md)); in V1 the route enqueues a job and returns `202` immediately.
+6. **Store** `pages` and every chunk; chunks without a reused vector wait for one.
+7. **Embed** the first batch of up to 80 waiting texts. If that was all, set the document `status: "ready"` and answer `201`.
+8. Otherwise answer `202` with `status: "processing"` and progress; the browser calls `POST /api/documents/:id/ingest`, which embeds one batch per request until the document is `ready`. When the Gemini free-tier quota (100 embedded texts per minute) is used up, the route answers `429` with the wait, the document keeps its progress, and the browser resumes after the wait ([ADR-0008](adr/0008-batched-ingestion-for-the-free-tier.md)). A short lock keeps two requests from embedding the same document at once.
 
 ## Ask path
 
@@ -49,9 +48,9 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 | Collection | Key fields | Indexes |
 | --- | --- | --- |
 | `users` | `_id` (the user id, e.g. `google:1082…`), `email`, `name`, `image`, `createdAt`, `lastSignInAt` | `_id` only; upserted on every sign-in |
-| `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `createdAt` | `{ userId, createdAt: -1 }` |
+| `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `embeddedChunks`, `ingestLockedUntil?`, `createdAt` | `{ userId, createdAt: -1 }` |
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
-| `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding: number[768]`, `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index** |
+| `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding?: number[768]` (missing until its batch is embedded), `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index** |
 | `chats` | `_id`, `userId`, `documentId`, `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
 | `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `feedback?` (V1), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
 
@@ -75,7 +74,8 @@ In the MVP this runs inside the request ([ADR-0005](adr/0005-synchronous-ingesti
 | --- | --- | --- | --- |
 | `GET` | `/api/health` | Liveness, plus env vars that are missing or still hold a template placeholder (names only) | Setup ✅ |
 | `*` | `/api/auth/[...nextauth]` | Auth.js handlers | MVP |
-| `POST` | `/api/documents` | Upload + ingest a PDF | MVP |
+| `POST` | `/api/documents` | Upload a PDF and index it (`201` ready, or `202` processing with progress) | MVP |
+| `POST` | `/api/documents/:id/ingest` | Index the next batch of a processing document; `429` with the wait at the quota | MVP |
 | `GET` | `/api/documents` | List the user's documents | MVP |
 | `GET` | `/api/documents/:id` | Document metadata and status | MVP |
 | `DELETE` | `/api/documents/:id` | Delete a document with its pages, chunks and chats | MVP |

@@ -8,6 +8,8 @@ export type DocumentSummary = {
   sizeBytes: number;
   status: DocumentStatus;
   chunkCount: number | null;
+  /** Chunks with a vector so far; equals chunkCount once ready. */
+  embeddedChunks: number | null;
   createdAt: string;
 };
 
@@ -19,6 +21,7 @@ export function toDocumentSummary(document: StoredDocument): DocumentSummary {
     sizeBytes: document.sizeBytes,
     status: document.status,
     chunkCount: document.chunkCount ?? null,
+    embeddedChunks: document.embeddedChunks ?? null,
     createdAt: document.createdAt.toISOString(),
   };
 }

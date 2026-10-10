@@ -5,7 +5,7 @@ import { getDb, isDatabaseUnavailable } from "@/lib/db/client";
 import { unauthorized, withDatabaseErrors } from "@/lib/api/responses";
 import { countDocuments, insertDocumentWithPages, listDocuments } from "@/lib/db/documents";
 import { toDocumentSummary } from "@/lib/documents/summary";
-import { ingestDocument } from "@/lib/ingest";
+import { startIngestion, type IngestProgress } from "@/lib/ingest";
 import { LIMITS, PDF_MAGIC_BYTES } from "@/lib/limits";
 import { countPages, extractPages, PdfReadError } from "@/lib/pdf/extract";
 import { validateUpload } from "@/lib/upload/validate";
@@ -98,9 +98,9 @@ async function handleUpload(request: Request) {
       pages,
     });
 
-    let chunkCount: number;
+    let progress: IngestProgress;
     try {
-      ({ chunkCount } = await ingestDocument({ db, embedder: getEmbedder(), userId, documentId, pages }));
+      progress = await startIngestion({ db, embedder: getEmbedder(), userId, documentId, pages });
     } catch (cause) {
       // The document and its pages are kept, marked "failed", so indexing can be retried later.
       if (cause instanceof EmbeddingError) {
@@ -114,16 +114,16 @@ async function handleUpload(request: Request) {
       throw cause;
     }
 
-    return Response.json(
-      {
-        documentId: documentId.toHexString(),
-        pageCount: pages.length,
-        emptyPages: pages.filter((page) => page.isEmpty).map((page) => page.pageNumber),
-        status: "ready",
-        chunkCount,
-      },
-      { status: 201 },
-    );
+    const stored = {
+      documentId: documentId.toHexString(),
+      pageCount: pages.length,
+      emptyPages: pages.filter((page) => page.isEmpty).map((page) => page.pageNumber),
+    };
+    if (progress.status === "ready") {
+      return Response.json({ ...stored, status: "ready", chunkCount: progress.chunkCount }, { status: 201 });
+    }
+    // Larger than one batch: the browser finishes indexing through POST /api/documents/:id/ingest.
+    return Response.json({ ...stored, ...progress }, { status: 202 });
   } catch (cause) {
     if (cause instanceof PdfReadError) return error(422, "unreadable_pdf", cause.message);
     throw cause;

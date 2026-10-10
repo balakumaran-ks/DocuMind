@@ -12,6 +12,7 @@ const doc = (overrides: Partial<DocumentSummary> = {}): DocumentSummary => ({
   sizeBytes: 300_000,
   status: "ready",
   chunkCount: 20,
+  embeddedChunks: 20,
   createdAt: "2026-10-08T10:00:00.000Z",
   ...overrides,
 });
