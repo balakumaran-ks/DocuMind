@@ -39,7 +39,7 @@ Uploads are parsed, chunked and embedded **once**. Each question then runs one f
 | Auth | Auth.js with Google sign-in | No passwords to store; little code |
 | Database + vectors | MongoDB Atlas + Atlas Vector Search | Data and embeddings in one place ([ADR-0002](docs/adr/0002-mongodb-atlas-vector-search.md)) |
 | PDF parsing | unpdf (PDF.js packaged for serverless) | Text per page, which citations depend on |
-| LLM + embeddings | Gemini via the Vercel AI SDK | Free tier; the provider can be swapped in one line ([ADR-0003](docs/adr/0003-gemini-via-vercel-ai-sdk.md)) |
+| LLM + embeddings | Gemma 4 for answers (Gemini 3.5 Flash as backup) and Gemini embeddings, via the Vercel AI SDK | Free tier; models are set by environment variables ([ADR-0003](docs/adr/0003-gemini-via-vercel-ai-sdk.md), [ADR-0009](docs/adr/0009-gemma-answers-with-gemini-backup.md)) |
 | Queue (V1) | BullMQ + Upstash Redis | Background ingestion with retries and progress |
 | Tests + CI | Vitest, Playwright, GitHub Actions | Merges blocked unless every check passes |
 
