@@ -1,6 +1,6 @@
 import { streamText, type TextStreamPart, type ToolSet } from "ai";
 import { z } from "zod";
-import { getAnswerModel } from "@/lib/ai/answer";
+import { getAnswerModels } from "@/lib/ai/answer";
 import { EmbeddingError, EmbeddingRateLimitError, getEmbedder } from "@/lib/ai/embed";
 import { quotaMessage, quotaRetrySeconds } from "@/lib/ai/quota";
 import { rateLimited } from "@/lib/api/responses";
@@ -112,24 +112,15 @@ async function handleAsk(request: Request) {
   const chunks = await retrieveChunks({ db, userId, documentId: document._id, queryVector });
   const history = existingChat ? await recentMessages(db, userId, existingChat._id, LIMITS.historyMessages) : [];
 
-  const prompt = buildPrompt({ question, chunks, history });
-  const result = streamText({
-    model: getAnswerModel(),
-    instructions: prompt.system,
-    messages: prompt.messages,
-    onError: ({ error: cause }) => console.error("Answer generation failed", cause),
-  });
-
   // Wait for the first piece of the answer, so a used-up quota or a model failure is still a
   // proper error response, and a question that was never answered isn't saved or counted.
-  const parts = result.fullStream[Symbol.asyncIterator]();
-  const first = await firstText(parts);
-  if ("error" in first) {
-    await parts.return?.();
-    const wait = quotaRetrySeconds(first.error);
+  const answering = await startAnswer(buildPrompt({ question, chunks, history }));
+  if ("error" in answering) {
+    const wait = quotaRetrySeconds(answering.error);
     if (wait !== null) return rateLimited(quotaMessage("questions", wait), wait);
     return error(502, "answer_failed", "The answer couldn't be generated. Please try again in a minute.");
   }
+  const { model, result, parts, first } = answering;
 
   const chat = existingChat ?? (await createChat(db, { userId, documentId: document._id, title: question }));
   await saveMessage(db, { chatId: chat._id, userId, role: "user", content: question });
@@ -144,6 +135,7 @@ async function handleAsk(request: Request) {
         userId: owner,
         role: "assistant",
         content: text,
+        model,
         citations: parseCitations(text, chunks),
         retrievedChunkIds: chunks.map((chunk) => chunk._id),
         latencyMs: Date.now() - started,
@@ -186,6 +178,28 @@ async function handleAsk(request: Request) {
 }
 
 type Parts = AsyncIterator<TextStreamPart<ToolSet>>;
+
+/**
+ * Starts the answer with each configured model in turn until one produces text.
+ * Returns that model's stream, already past its first text, or the last error.
+ */
+async function startAnswer(prompt: ReturnType<typeof buildPrompt>) {
+  let lastError: unknown = new Error("No answer model is configured.");
+  for (const { name, model } of getAnswerModels()) {
+    const result = streamText({
+      model,
+      instructions: prompt.system,
+      messages: prompt.messages,
+      onError: ({ error: cause }) => console.error(`Answer generation failed (${name})`, cause),
+    });
+    const parts: Parts = result.fullStream[Symbol.asyncIterator]();
+    const first = await firstText(parts);
+    if (!("error" in first)) return { model: name, result, parts, first };
+    await parts.return?.();
+    lastError = first.error;
+  }
+  return { error: lastError };
+}
 
 /** Reads until the first text of the answer, or the error that came instead. */
 async function firstText(parts: Parts): Promise<{ text: string } | { error: unknown }> {

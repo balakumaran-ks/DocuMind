@@ -31,6 +31,22 @@ describe("readServerEnv", () => {
     expect(env.embeddingDimensions).toBe(1536);
   });
 
+  it("has no backup answer model unless one is set", () => {
+    expect(readServerEnv(complete).chatFallbackModel).toBeNull();
+    expect(readServerEnv({ ...complete, GEMINI_FALLBACK_CHAT_MODEL: "  " }).chatFallbackModel).toBeNull();
+  });
+
+  it("reads the backup answer model", () => {
+    const env = readServerEnv({ ...complete, GEMINI_CHAT_MODEL: "gemma-4-31b-it", GEMINI_FALLBACK_CHAT_MODEL: "gemini-3.5-flash" });
+    expect(env.chatModel).toBe("gemma-4-31b-it");
+    expect(env.chatFallbackModel).toBe("gemini-3.5-flash");
+  });
+
+  it("ignores a backup that is the same model as the main one", () => {
+    const env = readServerEnv({ ...complete, GEMINI_CHAT_MODEL: "gemma-4-31b-it", GEMINI_FALLBACK_CHAT_MODEL: "gemma-4-31b-it" });
+    expect(env.chatFallbackModel).toBeNull();
+  });
+
   it("lists every missing required var in one error", () => {
     const { MONGODB_URI: _uri, AUTH_SECRET: _secret, ...partial } = complete;
     try {
