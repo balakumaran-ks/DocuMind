@@ -68,7 +68,7 @@ try {
     const documentId = documentIds.get(q.documentFile);
     if (!documentId) throw new Error(`No document for ${q.documentFile}`);
 
-    let answered: { chunks: Awaited<ReturnType<typeof retrieveChunks>>; text: string };
+    let answered: Awaited<ReturnType<typeof askOne>>;
     try {
       answered = await askOne(db, documentId, q.question);
     } catch (error) {
@@ -84,7 +84,7 @@ try {
       console.log(`${String(i + 1).padStart(2)}. ${q.question}\n    FAILED · ${message.slice(0, 90)}`);
       continue;
     }
-    const { chunks, text } = answered;
+    const { chunks, text, answerMs } = answered;
 
     const result = {
       ...q,
@@ -92,6 +92,8 @@ try {
       citedPages: parseCitations(text, chunks).map((citation) => citation.pageNumber),
       answer: text,
       latencyMs: Date.now() - started,
+      /** The model's own response time, without pacing waits or retries. */
+      answerMs,
     };
     cases.push(result);
     console.log(`${String(i + 1).padStart(2)}. ${q.question}\n    retrieved ${result.retrievedPages.join(",")} · cited ${result.citedPages.join(",") || "-"} · ${text.slice(0, 90).replace(/\s+/g, " ")}`);
@@ -122,6 +124,14 @@ function report(run: Run) {
   console.log(`citation accuracy  ${percent(summary.citationAccuracy)}`);
   console.log(`refusal rate       ${percent(summary.refusalRate)}`);
   console.log(`false refusals     ${percent(summary.falseRefusalRate)}`);
+  const times = run.cases
+    .map((c) => (c as EvalCase & { answerMs?: number }).answerMs)
+    .filter((ms): ms is number => typeof ms === "number")
+    .sort((a, b) => a - b);
+  if (times.length > 0) {
+    const at = (q: number) => Math.round((times[Math.min(times.length - 1, Math.floor(q * times.length))] ?? 0) / 1000);
+    console.log(`answer time        median ${at(0.5)} s, p90 ${at(0.9)} s`);
+  }
 
   const previous = latestResults(resultsDir);
   if (previous) {
@@ -172,8 +182,9 @@ async function askOne(db: Db, documentId: ObjectId, question: string) {
       const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector });
       const prompt = buildPrompt({ question, chunks, history: [] });
       await reserveAnswer();
+      const answerStarted = Date.now();
       const { text } = await generateText({ model: getAnswerModel(), instructions: prompt.system, messages: prompt.messages });
-      return { chunks, text };
+      return { chunks, text, answerMs: Date.now() - answerStarted };
     } catch (error) {
       const wait = quotaWait(error);
       if ((wait !== null && isDailyQuota(wait)) || attempt >= 3) throw error;
