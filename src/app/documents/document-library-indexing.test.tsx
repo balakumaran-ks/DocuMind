@@ -29,7 +29,7 @@ const quota = (retryAfterSeconds: number, embeddedChunks: number) =>
 
 let fetchMock: Mock<typeof fetch>;
 /** Answers for successive POSTs to the ingest route, in order. */
-let ingestReplies: Response[];
+let ingestReplies: (Response | Promise<Response>)[];
 /** Pending waits requested by the component, released by the test. */
 let waits: { ms: number; release: () => void }[];
 
@@ -70,12 +70,14 @@ const pdf = () => new File([new Uint8Array(2048)], "p501.pdf", { type: "applicat
 
 describe("DocumentLibrary — indexing large documents", () => {
   it("keeps indexing after a 202 upload, showing progress, until the document is ready", async () => {
-    ingestReplies = [progress(160), progress(220, "ready")];
+    let finish: () => void = () => {};
+    ingestReplies = [progress(160), new Promise<Response>((resolve) => (finish = () => resolve(progress(220, "ready"))))];
     const { user, input, row } = setup();
 
     await user.upload(input(), pdf());
 
     expect(await within(row()).findByText("Indexing… 160 of 220 chunks")).toBeTruthy();
+    finish();
     expect(await screen.findByRole("link", { name: "p501.pdf" })).toBeTruthy();
     expect(within(row()).getByText("Ready")).toBeTruthy();
     expect(ingestCalls()).toBe(2);

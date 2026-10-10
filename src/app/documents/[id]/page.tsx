@@ -30,7 +30,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
         <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm dark:border-amber-900 dark:bg-amber-950">
           {document.status === "failed"
             ? "Indexing this document failed, so it can't be asked about. Delete it and upload it again."
-            : "This document is still being indexed. Try again in a moment."}
+            : "This document isn't fully indexed yet. Indexing continues from your document list, where you can resume it."}
         </p>
       </main>
     );
