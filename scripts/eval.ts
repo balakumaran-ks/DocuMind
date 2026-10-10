@@ -9,12 +9,15 @@
  * Uses real Atlas Vector Search and real Gemini calls (one embedding and one
  * answer per question, plus the documents' chunks), so it reads .env.local.
  * The database is EVAL_DB (default "documind_eval"), never the app's.
+ * Calls are paced for the free tier (EVAL_EMBEDS_PER_MINUTE, default 90;
+ * EVAL_ANSWERS_PER_MINUTE, default 4), and unchanged documents are reused.
  */
+import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { generateText } from "ai";
 import { MongoClient, type Db, type ObjectId } from "mongodb";
 import { getAnswerModel } from "@/lib/ai/answer";
-import { getEmbedder } from "@/lib/ai/embed";
+import { getEmbedder, type Embedder } from "@/lib/ai/embed";
 import { ensureChunkIndexes } from "@/lib/db/chunks";
 import { ensureIndexes, insertDocumentWithPages } from "@/lib/db/documents";
 import { ensureVectorIndex, waitUntilQueryable } from "@/lib/db/search-index";
@@ -31,7 +34,8 @@ const EVAL_USER = "eval";
 const root = new URL("../evals/", import.meta.url);
 
 const env = readServerEnv();
-const embedder = getEmbedder();
+const embedder = paced(getEmbedder(), Number(process.env.EVAL_EMBEDS_PER_MINUTE ?? 90));
+const reserveAnswer = perMinuteBudget(Number(process.env.EVAL_ANSWERS_PER_MINUTE ?? 4), "answer");
 const questions = parseQuestions(readFileSync(new URL("questions.jsonl", root), "utf8"));
 const client = await MongoClient.connect(env.mongodbUri, { appName: "documind-eval" });
 
@@ -49,6 +53,7 @@ try {
     const queryVector = await embedder.embedQuery(q.question);
     const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector });
     const prompt = buildPrompt({ question: q.question, chunks, history: [] });
+    await reserveAnswer();
     const { text } = await generateText({ model: getAnswerModel(), instructions: prompt.system, messages: prompt.messages });
 
     const result = {
@@ -80,25 +85,90 @@ try {
   await client.close();
 }
 
-/** Indexes, a clean slate for the eval user, and a queryable vector index. */
+/**
+ * A per-minute budget, like the Gemini free tier's quotas: `reserve(n)` waits
+ * until n more units fit in the last 60 seconds.
+ */
+function perMinuteBudget(perMinute: number, label: string) {
+  const sent: number[] = [];
+  return async function reserve(count = 1) {
+    for (;;) {
+      const now = Date.now();
+      while (sent.length > 0 && (sent[0] ?? now) <= now - 60_000) sent.shift();
+      if (sent.length + count <= perMinute) break;
+      const wait = (sent[sent.length + count - perMinute - 1] ?? now) + 60_000 - now + 500;
+      console.log(`    (waiting ${Math.ceil(wait / 1000)} s for the ${label} quota)`);
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+    sent.push(...Array.from({ length: count }, () => Date.now()));
+  };
+}
+
+/** Keeps embedding calls under the per-minute quota, which counts texts, not requests. */
+function paced(inner: Embedder, perMinute: number): Embedder {
+  const reserve = perMinuteBudget(perMinute, "embedding");
+  return {
+    model: inner.model,
+    dimensions: inner.dimensions,
+    async embedDocuments(texts) {
+      const vectors: number[][] = [];
+      for (let i = 0; i < texts.length; i += perMinute) {
+        const batch = texts.slice(i, i + perMinute);
+        await reserve(batch.length);
+        vectors.push(...(await inner.embedDocuments(batch)));
+      }
+      return vectors;
+    },
+    async embedQuery(text) {
+      await reserve(1);
+      return inner.embedQuery(text);
+    },
+  };
+}
+
+/** Indexes, and a queryable vector index. Earlier eval documents are kept and reused when unchanged. */
 async function prepare(db: Db) {
   await ensureIndexes(db);
   await ensureChunkIndexes(db);
-  await Promise.all(["documents", "pages", "chunks"].map((name) => db.collection(name).deleteMany({ userId: EVAL_USER })));
   const index = await ensureVectorIndex(db, env.embeddingDimensions);
   if (index.status === "mismatch") throw new Error("The eval database's vector index has different dimensions; drop it in Atlas.");
   if (!(await waitUntilQueryable(db))) throw new Error("The vector index is still building; run the eval again in a minute.");
 }
 
-/** Stores and embeds each PDF the way an upload does, then waits until search sees its chunks. */
+/**
+ * Stores and embeds each PDF the way an upload does, then waits until search
+ * sees its chunks. A ready copy with the same content and embedding model is
+ * reused; anything else for that file is deleted and ingested again.
+ */
 async function ingest(db: Db, files: string[]): Promise<Map<string, ObjectId>> {
   const ids = new Map<string, ObjectId>();
   for (const file of files) {
     const bytes = new Uint8Array(readFileSync(new URL(`docs/${file}`, root)));
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const existing = await db.collection("documents").findOne({
+      userId: EVAL_USER,
+      filename: file,
+      sha256,
+      status: "ready",
+      embeddingModel: embedder.model,
+    });
+    if (existing) {
+      console.log(`Reusing ${file} (${String(existing.chunkCount)} chunks)`);
+      ids.set(file, existing._id);
+      continue;
+    }
+    const stale = await db.collection("documents").find({ userId: EVAL_USER, filename: file }).toArray();
+    for (const document of stale) {
+      await Promise.all(
+        ["pages", "chunks"].map((name) => db.collection(name).deleteMany({ userId: EVAL_USER, documentId: document._id })),
+      );
+      await db.collection("documents").deleteOne({ _id: document._id, userId: EVAL_USER });
+    }
+
     const pageCount = await countPages(bytes);
     if (pageCount > LIMITS.maxPagesPerDocument) throw new Error(`${file} has ${pageCount} pages; the limit is ${LIMITS.maxPagesPerDocument}.`);
     const pages = await extractPages(bytes);
-    const documentId = await insertDocumentWithPages(db, { userId: EVAL_USER, filename: file, sizeBytes: bytes.length, sha256: "", pages });
+    const documentId = await insertDocumentWithPages(db, { userId: EVAL_USER, filename: file, sizeBytes: bytes.length, sha256, pages });
     const { chunkCount } = await ingestDocument({ db, embedder, userId: EVAL_USER, documentId, pages });
     console.log(`Ingested ${file}: ${pageCount} pages, ${chunkCount} chunks`);
     await waitUntilSearchable(db, documentId, chunkCount);

@@ -1,0 +1,15 @@
+{"question":"What are the six Functions of the CSF Core?","documentFile":"nist-csf-2.0.pdf","expectedPages":[8,9,10,20,31],"answerable":true}
+{"question":"What are the four CSF Tiers?","documentFile":"nist-csf-2.0.pdf","expectedPages":[12,13,29,30,31],"answerable":true}
+{"question":"What is the difference between a Current Profile and a Target Profile?","documentFile":"nist-csf-2.0.pdf","expectedPages":[11,31],"answerable":true}
+{"question":"What was the Cybersecurity Framework called before version 2.0?","documentFile":"nist-csf-2.0.pdf","expectedPages":[2],"answerable":true}
+{"question":"Why is GOVERN shown in the center of the CSF Functions wheel?","documentFile":"nist-csf-2.0.pdf","expectedPages":[9],"answerable":true}
+{"question":"Which CSF subcategory covers creating and testing backups of data?","documentFile":"nist-csf-2.0.pdf","expectedPages":[25],"answerable":true}
+{"question":"Who was the director of NIST when CSF 2.0 was published?","documentFile":"nist-csf-2.0.pdf","expectedPages":[],"answerable":false}
+{"question":"How many organizations worldwide have adopted the CSF?","documentFile":"nist-csf-2.0.pdf","expectedPages":[],"answerable":false}
+{"question":"What is the 2025 standard deduction for a single filer?","documentFile":"irs-p501.pdf","expectedPages":[24,25,26],"answerable":true}
+{"question":"What is the maximum enhanced deduction for seniors?","documentFile":"irs-p501.pdf","expectedPages":[1,26],"answerable":true}
+{"question":"How many filing statuses are there, and what are they?","documentFile":"irs-p501.pdf","expectedPages":[5,6],"answerable":true}
+{"question":"What are the five tests for a child to be your qualifying child?","documentFile":"irs-p501.pdf","expectedPages":[12,13],"answerable":true}
+{"question":"For how many years after a spouse's death can you file as a qualifying surviving spouse?","documentFile":"irs-p501.pdf","expectedPages":[6,10],"answerable":true}
+{"question":"What is the federal minimum wage?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}
+{"question":"What is the corporate income tax rate?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}

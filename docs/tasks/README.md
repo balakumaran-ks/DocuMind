@@ -9,5 +9,5 @@ The MVP is built in small slices. Each task file states the goal, the acceptance
 | [002](002-chunker.md) | Page-bounded chunker with overlap | MVP | ✅ Done |
 | [003](003-embed-and-index.md) | Embed chunks, Atlas vector index with `userId` filter | MVP | ✅ Done |
 | [004](004-ask-route.md) | Ask route: retrieve, prompt with page tags, stream | MVP | ✅ Done |
-| [005](005-chat-ui-auth-history.md) | Chat UI with citations, Google sign-in, history | MVP | In review (005a–005d done, 005e in review) |
-| [006](006-evals-and-deploy.md) | First 15 eval questions, deploy to Vercel | MVP | |
+| [005](005-chat-ui-auth-history.md) | Chat UI with citations, Google sign-in, history | MVP | ✅ Done |
+| [006](006-evals-and-deploy.md) | First 15 eval questions, deploy to Vercel | MVP | In review (deployed; eval in review) |

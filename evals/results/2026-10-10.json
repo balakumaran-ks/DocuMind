@@ -1,0 +1,332 @@
+{
+  "date": "2026-10-10",
+  "settings": {
+    "chatModel": "gemini-3.5-flash",
+    "embeddingModel": "gemini-embedding-2",
+    "dimensions": 768,
+    "limits": {
+      "maxUploadBytes": 4194304,
+      "maxPagesPerDocument": 50,
+      "maxDocumentsPerUser": 5,
+      "maxQuestionsPerDay": 50,
+      "retrievalTopK": 5,
+      "chunkSize": 1200,
+      "chunkOverlap": 200,
+      "embedMaxParallelCalls": 2,
+      "vectorNumCandidates": 100,
+      "historyMessages": 6,
+      "maxQuestionChars": 1000
+    }
+  },
+  "summary": {
+    "questions": 15,
+    "answerable": 11,
+    "unanswerable": 4,
+    "hitAt5": 0.9090909090909091,
+    "citationAccuracy": 0.8181818181818182,
+    "refusalRate": 1,
+    "falseRefusalRate": 0.18181818181818182
+  },
+  "cases": [
+    {
+      "question": "What are the six Functions of the CSF Core?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        8,
+        9,
+        10,
+        20,
+        31
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        8,
+        31,
+        31,
+        9,
+        10
+      ],
+      "citedPages": [
+        8,
+        31
+      ],
+      "answer": "The six Functions of the CSF Core are Govern, Identify, Protect, Detect, Respond, and Recover [p. 8, 31].",
+      "latencyMs": 4708
+    },
+    {
+      "question": "What are the four CSF Tiers?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        12,
+        13,
+        29,
+        30,
+        31
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        12,
+        31,
+        29,
+        6,
+        13
+      ],
+      "citedPages": [
+        12,
+        31
+      ],
+      "answer": "The four CSF Tiers are Partial (Tier 1), Risk Informed (Tier 2), Repeatable (Tier 3), and Adaptive (Tier 4) [p. 12, 31].",
+      "latencyMs": 6052
+    },
+    {
+      "question": "What is the difference between a Current Profile and a Target Profile?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        11,
+        31
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        11,
+        12,
+        11,
+        31,
+        12
+      ],
+      "citedPages": [
+        11
+      ],
+      "answer": "A Current Profile specifies the cybersecurity outcomes that an organization is currently achieving (or attempting to achieve) and details the extent to which they are being achieved [p. 11]. \n\nIn contrast, a Target Profile specifies the desired outcomes that an organization has selected and prioritized to meet its cybersecurity risk management objectives, factoring in anticipated changes such as new requirements, technology adoption, and threat trends [p. 11].",
+      "latencyMs": 4552
+    },
+    {
+      "question": "What was the Cybersecurity Framework called before version 2.0?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        2
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        6,
+        2,
+        32,
+        1,
+        5
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 6005
+    },
+    {
+      "question": "Why is GOVERN shown in the center of the CSF Functions wheel?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        9
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        9,
+        8,
+        8,
+        9,
+        10
+      ],
+      "citedPages": [
+        9
+      ],
+      "answer": "GOVERN is shown in the center of the wheel because it informs how an organization will implement the other five Functions [p. 9].",
+      "latencyMs": 45321
+    },
+    {
+      "question": "Which CSF subcategory covers creating and testing backups of data?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [
+        25
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        10,
+        20,
+        28,
+        8,
+        20
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 7323
+    },
+    {
+      "question": "Who was the director of NIST when CSF 2.0 was published?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        1,
+        2,
+        32,
+        6,
+        3
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 3746
+    },
+    {
+      "question": "How many organizations worldwide have adopted the CSF?",
+      "documentFile": "nist-csf-2.0.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        7,
+        5,
+        7,
+        2,
+        3
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 7858
+    },
+    {
+      "question": "What is the 2025 standard deduction for a single filer?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        24,
+        25,
+        26
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        1,
+        24,
+        24,
+        26,
+        25
+      ],
+      "citedPages": [
+        25,
+        24,
+        26
+      ],
+      "answer": "The 2025 standard deduction for most single filers is $15,750 [p. 25]. \n\nIf the single filer was born before January 2, 1961, or is blind, the standard deduction is $17,750 (if only one of these applies) or $19,750 (if both apply) [p. 25]. \n\nFor a single filer who can be claimed as a dependent, the standard deduction is generally limited to the greater of $1,350 or their earned income plus $450, up to a maximum of $15,750 (though it may be higher if they are 65 or older or blind) [p. 24, 26].",
+      "latencyMs": 41794
+    },
+    {
+      "question": "What is the maximum enhanced deduction for seniors?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        1,
+        26
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        26,
+        26,
+        1,
+        26,
+        26
+      ],
+      "citedPages": [
+        1,
+        26
+      ],
+      "answer": "The maximum enhanced deduction for seniors is $6,000, or $12,000 if married filing jointly and both spouses are eligible [p. 1, 26].",
+      "latencyMs": 3190
+    },
+    {
+      "question": "How many filing statuses are there, and what are they?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        5,
+        6
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        6,
+        6,
+        6,
+        6,
+        31
+      ],
+      "citedPages": [
+        6
+      ],
+      "answer": "Based on the provided document, there are five filing statuses:\n\n* Married filing jointly [p. 6]\n* Married filing separately [p. 6]\n* Head of household [p. 6]\n* Qualifying surviving spouse [p. 6]\n* Single [p. 6]",
+      "latencyMs": 8700
+    },
+    {
+      "question": "What are the five tests for a child to be your qualifying child?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        12,
+        13
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        13,
+        12,
+        12,
+        13,
+        15
+      ],
+      "citedPages": [
+        12
+      ],
+      "answer": "The five tests for a child to be a qualifying child are:\n1. Relationship\n2. Age\n3. Residency\n4. Support\n5. Joint return [p. 12]",
+      "latencyMs": 3363
+    },
+    {
+      "question": "For how many years after a spouse's death can you file as a qualifying surviving spouse?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [
+        6,
+        10
+      ],
+      "answerable": true,
+      "retrievedPages": [
+        10,
+        11,
+        10,
+        11,
+        11
+      ],
+      "citedPages": [
+        10
+      ],
+      "answer": "You may be eligible to use the qualifying surviving spouse filing status for 2 years following the year your spouse died [p. 10].",
+      "latencyMs": 43291
+    },
+    {
+      "question": "What is the federal minimum wage?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        4,
+        24,
+        1,
+        26,
+        5
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 6014
+    },
+    {
+      "question": "What is the corporate income tax rate?",
+      "documentFile": "irs-p501.pdf",
+      "expectedPages": [],
+      "answerable": false,
+      "retrievedPages": [
+        4,
+        30,
+        1,
+        27,
+        3
+      ],
+      "citedPages": [],
+      "answer": "That isn't covered in this document.",
+      "latencyMs": 8025
+    }
+  ]
+}
