@@ -138,6 +138,19 @@ describe("POST /api/documents/:id/ingest", () => {
     expect((await documentRow(uploaded.documentId))?.status).toBe("processing");
   });
 
+  it("says the daily quota is used up when Gemini asks for hours, keeping the document resumable", async () => {
+    const { body: uploaded } = await uploadFixture();
+    if (fake.current) fake.current.state.failWith = new EmbeddingRateLimitError({ retryAfterSeconds: 80_353 });
+
+    const { status, headers, body } = await ingest(uploaded.documentId);
+    expect(status).toBe(429);
+    expect(headers.get("retry-after")).toBe("80353");
+    expect(body.error).toMatchObject({ code: "rate_limited", retryAfterSeconds: 80_353 });
+    expect(body.error.message).toMatch(/daily/i);
+    expect(body.error.message).toMatch(/about 22 hours/);
+    expect((await documentRow(uploaded.documentId))?.status).toBe("processing");
+  });
+
   it("409 while another request is indexing the document", async () => {
     const { body: uploaded } = await uploadFixture();
     await db

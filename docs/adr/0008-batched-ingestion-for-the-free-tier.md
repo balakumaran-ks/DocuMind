@@ -24,3 +24,4 @@ The upload request stores every chunk at once, reusing vectors the user already 
 - Indexing progresses only while a browser tab drives it. A document left `processing` resumes from where it stopped when the user returns, because every stored chunk without a vector is simply the next work.
 - Chunks without a vector are skipped by the vector index, and questions are blocked until the document is `ready`, so answers never draw on half a document.
 - A V1 worker can reuse the same `continueIngestion` function unchanged, calling it in a loop instead of the browser.
+- The free tier also has daily quotas; Gemini then asks for a wait of hours ("retry in 22h19m12s"). Waits longer than `LIMITS.quotaWaitMaxSeconds` (five minutes) are reported as "the free daily quota is used up" instead of counted down, and the document stays resumable.

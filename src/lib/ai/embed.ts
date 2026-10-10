@@ -1,5 +1,6 @@
 import { createGoogle, type GoogleEmbeddingModelOptions } from "@ai-sdk/google";
-import { APICallError, embedMany, RetryError, type EmbeddingModel } from "ai";
+import { embedMany, type EmbeddingModel } from "ai";
+import { describeWait, quotaRetrySeconds } from "@/lib/ai/quota";
 import { readServerEnv } from "@/lib/env";
 import { LIMITS } from "@/lib/limits";
 
@@ -27,21 +28,10 @@ export class EmbeddingRateLimitError extends EmbeddingError {
   readonly retryAfterSeconds: number;
 
   constructor(options: { retryAfterSeconds: number; cause?: unknown }) {
-    super({ cause: options.cause, message: `The free embedding quota is used up. Try again in ${options.retryAfterSeconds} seconds.` });
+    super({ cause: options.cause, message: `The free embedding quota is used up. Try again in ${describeWait(options.retryAfterSeconds)}.` });
     this.name = "EmbeddingRateLimitError";
     this.retryAfterSeconds = options.retryAfterSeconds;
   }
-}
-
-/** Gemini asks for a wait when a quota is exceeded ("Please retry in 32.9s"); a minute if it doesn't say. */
-const DEFAULT_RETRY_SECONDS = 60;
-
-/** Seconds to wait if `error` is a 429 (possibly wrapped by the SDK's retries), otherwise null. */
-export function quotaRetrySeconds(error: unknown): number | null {
-  if (RetryError.isInstance(error)) return quotaRetrySeconds(error.lastError);
-  if (!APICallError.isInstance(error) || error.statusCode !== 429) return null;
-  const hint = /retry in ([\d.]+)\s*s/i.exec(error.message)?.[1];
-  return hint ? Math.ceil(Number(hint)) : DEFAULT_RETRY_SECONDS;
 }
 
 type TaskType = "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY";

@@ -1,4 +1,5 @@
 import { EmbeddingError, getEmbedder } from "@/lib/ai/embed";
+import { quotaMessage } from "@/lib/ai/quota";
 import { errorResponse, rateLimited, unauthorized, withDatabaseErrors } from "@/lib/api/responses";
 import { getUserId } from "@/lib/auth/user";
 import { getDb } from "@/lib/db/client";
@@ -31,11 +32,10 @@ export async function POST(_request: Request, ctx: RouteContext<"/api/documents/
 
       const { retryAfterSeconds, ...counts } = progress;
       if (retryAfterSeconds) {
-        return rateLimited(
-          `The free indexing quota is used up for this minute. Indexing continues in ${retryAfterSeconds} seconds.`,
-          retryAfterSeconds,
-          { chunkCount: counts.chunkCount, embeddedChunks: counts.embeddedChunks },
-        );
+        return rateLimited(quotaMessage("indexing", retryAfterSeconds), retryAfterSeconds, {
+          chunkCount: counts.chunkCount,
+          embeddedChunks: counts.embeddedChunks,
+        });
       }
       return Response.json(counts);
     } catch (cause) {

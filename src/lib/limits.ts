@@ -23,6 +23,8 @@ export const LIMITS = {
   embedBatchSize: 80,
   /** How long one indexing request may hold a document before another may take over. */
   ingestLockSeconds: 90,
+  /** A provider wait longer than this means a daily quota: report it instead of counting down. */
+  quotaWaitMaxSeconds: 300,
   /** Nearest neighbours the vector search considers before keeping the top `retrievalTopK`. */
   vectorNumCandidates: 100,
   /** Earlier chat messages (questions and answers) sent with each new question. */

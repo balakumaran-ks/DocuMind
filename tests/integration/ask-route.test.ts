@@ -2,6 +2,7 @@ import { MongoClient, ObjectId, type Db } from "mongodb";
 import type { MongoMemoryServer } from "mongodb-memory-server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "@/app/api/ask/route";
+import { APICallError } from "ai";
 import { EmbeddingRateLimitError } from "@/lib/ai/embed";
 import { closeDb } from "@/lib/db/client";
 import { insertDocumentWithPages } from "@/lib/db/documents";
@@ -251,13 +252,38 @@ describe("POST /api/ask — answering", () => {
     expect(await chats()).toHaveLength(1);
   });
 
-  it("counts the question even when the model fails, and saves no answer", async () => {
+  it("502 and saves nothing when the model fails before answering", async () => {
     const documentId = await seedDocument();
     if (fakes.answer) fakes.answer.state.failWith = new Error("model overloaded");
-    await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
+    const { status, json } = await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
 
-    await vi.waitFor(async () => expect(await messages()).toHaveLength(1));
-    expect((await messages())[0]).toMatchObject({ role: "user", content: "When are fees due?" });
+    expect(status).toBe(502);
+    expect(json().error.code).toBe("answer_failed");
+    expect(json().error.message).toMatch(/try again/i);
+    expect(await chats()).toHaveLength(0);
+    expect(await messages()).toHaveLength(0);
+  });
+
+  it("429 with the wait, saving nothing, when the free answer quota is used up", async () => {
+    const documentId = await seedDocument();
+    if (fakes.answer) {
+      fakes.answer.state.failWith = new APICallError({
+        message: "You exceeded your current quota. Please retry in 22h19m12.17s.",
+        url: "https://generativelanguage.googleapis.com",
+        requestBodyValues: {},
+        statusCode: 429,
+        isRetryable: false,
+      });
+    }
+    const { status, headers, json } = await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
+
+    expect(status).toBe(429);
+    expect(headers.get("retry-after")).toBe("80353");
+    expect(json().error).toMatchObject({ code: "rate_limited", retryAfterSeconds: 80_353 });
+    expect(json().error.message).toMatch(/daily/i);
+    expect(json().error.message).toMatch(/about 22 hours/);
+    expect(await chats()).toHaveLength(0);
+    expect(await messages()).toHaveLength(0);
   });
 });
 
@@ -382,6 +408,16 @@ describe("POST /api/ask — rejections", () => {
     expect(json().error.message).toMatch(/20 seconds/);
     expect(await chats()).toHaveLength(0);
     expect(await messages()).toHaveLength(0);
+  });
+
+  it("says the daily quota is used up, not a countdown, when Gemini asks for hours", async () => {
+    const documentId = await seedDocument();
+    if (fakes.embedder) fakes.embedder.state.failWith = new EmbeddingRateLimitError({ retryAfterSeconds: 80_353 });
+    const { status, json } = await ask({ documentId: documentId.toHexString(), question: "q" });
+
+    expect(status).toBe(429);
+    expect(json().error.message).toMatch(/daily/i);
+    expect(json().error.message).toMatch(/about 22 hours/);
   });
 
   it("503 with a clear message when the database is unreachable", async () => {
