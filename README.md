@@ -45,16 +45,16 @@ Uploads are parsed, chunked and embedded **once**. Each question then runs one f
 
 ## Evaluation
 
-Retrieval and answer quality are measured on a hand-written eval set ([evals/questions.jsonl](evals/questions.jsonl)): questions over public-domain PDFs (the NIST Cybersecurity Framework 2.0 and IRS Publication 501), each with the pages that answer it, including questions whose answer is *not* in the documents. `npm run eval` runs every question through the same retrieval, prompt and citation code as the app and writes the results to [evals/results](evals/results). Results are committed with every change to chunking, retrieval or prompts, so each change has before/after numbers. The set starts at 15 questions and grows to 30–50.
+Retrieval and answer quality are measured on a hand-written eval set ([evals/questions.jsonl](evals/questions.jsonl)): questions over public-domain PDFs (the NIST Cybersecurity Framework 2.0 and IRS Publication 501), each with the pages that answer it, including questions whose answer is *not* in the documents. `npm run eval` runs every question through the same retrieval, prompt and citation code as the app and writes the results to [evals/results](evals/results). Results are committed with every change to chunking, retrieval, prompts or models, so each change has before/after numbers. Each run also prints which questions changed since the previous one, and `npm run eval -- --rescore` re-scores a saved run after expected pages are corrected, without calling any model.
 
-| Metric | Target | Baseline (2026-10-10, 15 questions) | Current |
+| Metric | Target | First baseline (15 questions, Gemini 3.5 Flash) | Current (30 questions, Gemma 4 26B A4B) |
 | --- | --- | --- | --- |
-| Retrieval hit@5 | ≥ 85% | 91% (10 of 11) | 91% |
-| Citation accuracy | ≥ 90% | 82% (9 of 11) | 82% |
-| Refusal on not-in-document questions | ≥ 90% | 100% (4 of 4) | 100% |
-| False refusals on answerable questions | as low as possible | 18% (2 of 11) | 18% |
+| Retrieval hit@5 | ≥ 85% | 91% (10 of 11) | 96% (22 of 23) |
+| Citation accuracy | ≥ 90% | 82% (9 of 11) | 87% (20 of 23) |
+| Refusal on not-in-document questions | ≥ 90% | 100% (4 of 4) | 100% (7 of 7) |
+| False refusals on answerable questions | as low as possible | 18% (2 of 11) | 4% (1 of 23) |
 
-Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. The two misses in the baseline are false refusals: one where the answering page was retrieved but the model still refused, and one where retrieval missed a short line in a long table.
+Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. The current misses: one false refusal although the answering page was retrieved, one retrieval miss on a single line in a long list, and one answer that added a citation about a different case. These are the targets of the next prompt and hybrid-search changes.
 
 ## Roadmap
 

@@ -1,6 +1,6 @@
 {"question":"What are the six Functions of the CSF Core?","documentFile":"nist-csf-2.0.pdf","expectedPages":[8,9,10,20,31],"answerable":true}
 {"question":"What are the four CSF Tiers?","documentFile":"nist-csf-2.0.pdf","expectedPages":[12,13,29,30,31],"answerable":true}
-{"question":"What is the difference between a Current Profile and a Target Profile?","documentFile":"nist-csf-2.0.pdf","expectedPages":[11,31],"answerable":true}
+{"question":"What is the difference between a Current Profile and a Target Profile?","documentFile":"nist-csf-2.0.pdf","expectedPages":[11,12,31],"answerable":true}
 {"question":"What was the Cybersecurity Framework called before version 2.0?","documentFile":"nist-csf-2.0.pdf","expectedPages":[2],"answerable":true}
 {"question":"Why is GOVERN shown in the center of the CSF Functions wheel?","documentFile":"nist-csf-2.0.pdf","expectedPages":[9],"answerable":true}
 {"question":"Which CSF subcategory covers creating and testing backups of data?","documentFile":"nist-csf-2.0.pdf","expectedPages":[25],"answerable":true}
@@ -13,3 +13,18 @@
 {"question":"For how many years after a spouse's death can you file as a qualifying surviving spouse?","documentFile":"irs-p501.pdf","expectedPages":[6,10],"answerable":true}
 {"question":"What is the federal minimum wage?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}
 {"question":"What is the corporate income tax rate?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}
+{"question":"Which CSF subcategory covers maintaining inventories of hardware?","documentFile":"nist-csf-2.0.pdf","expectedPages":[23],"answerable":true}
+{"question":"What does the GV.SC category cover?","documentFile":"nist-csf-2.0.pdf","expectedPages":[18,20,22,23],"answerable":true}
+{"question":"What does subcategory RS.MI-01 require?","documentFile":"nist-csf-2.0.pdf","expectedPages":[27],"answerable":true}
+{"question":"What are the steps for creating and using a CSF Organizational Profile?","documentFile":"nist-csf-2.0.pdf","expectedPages":[11,12],"answerable":true}
+{"question":"Where can suggestions for new Informative References for CSF 2.0 be sent?","documentFile":"nist-csf-2.0.pdf","expectedPages":[14],"answerable":true}
+{"question":"Which NIST framework was developed to help address risks from artificial intelligence?","documentFile":"nist-csf-2.0.pdf","expectedPages":[19],"answerable":true}
+{"question":"When will NIST release CSF 3.0?","documentFile":"nist-csf-2.0.pdf","expectedPages":[],"answerable":false}
+{"question":"What is the minimum amount of net earnings from self-employment that requires you to file a return?","documentFile":"irs-p501.pdf","expectedPages":[5],"answerable":true}
+{"question":"When is a person considered to reach age 65?","documentFile":"irs-p501.pdf","expectedPages":[3,23,26],"answerable":true}
+{"question":"What are the requirements to file as head of household?","documentFile":"irs-p501.pdf","expectedPages":[8,9,10],"answerable":true}
+{"question":"Under the age test, how old can a qualifying child who is a student be?","documentFile":"irs-p501.pdf","expectedPages":[12,13],"answerable":true}
+{"question":"Under a multiple support agreement, what share of a person's support must you provide to claim them?","documentFile":"irs-p501.pdf","expectedPages":[21],"answerable":true}
+{"question":"If your filing status is married filing separately, how much gross income requires you to file a return?","documentFile":"irs-p501.pdf","expectedPages":[2],"answerable":true}
+{"question":"How much is the child tax credit per child?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}
+{"question":"How do I renew a U.S. passport?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}
