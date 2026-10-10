@@ -24,6 +24,8 @@ vi.mock("@/lib/auth/user", () => ({ getUserId: async () => session.userId }));
 const fakes = vi.hoisted(() => ({
   embedder: null as ReturnType<typeof import("./helpers/fake-embedder").fakeEmbedder> | null,
   answer: null as ReturnType<typeof import("./helpers/fake-answer-model").fakeAnswerModel> | null,
+  /** The backup answer model, when a test configures one. */
+  fallback: null as ReturnType<typeof import("./helpers/fake-answer-model").fakeAnswerModel> | null,
 }));
 vi.mock("@/lib/ai/embed", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ai/embed")>()),
@@ -33,9 +35,12 @@ vi.mock("@/lib/ai/embed", async (importOriginal) => ({
   },
 }));
 vi.mock("@/lib/ai/answer", () => ({
-  getAnswerModel: () => {
+  getAnswerModels: () => {
     if (!fakes.answer) throw new Error("fake answer model not set");
-    return fakes.answer.model;
+    return [
+      { name: "fake-main-model", model: fakes.answer.model },
+      ...(fakes.fallback ? [{ name: "fake-backup-model", model: fakes.fallback.model }] : []),
+    ];
   },
 }));
 
@@ -126,6 +131,7 @@ beforeEach(async () => {
   session.userId = USER_ID;
   fakes.embedder = fakeEmbedder();
   fakes.answer = fakeAnswerModel();
+  fakes.fallback = null;
   vi.mocked(retrieveChunks).mockClear();
   await Promise.all(
     ["documents", "pages", "chunks", "chats", "messages"].map((name) => db.collection(name).deleteMany({})),
@@ -283,6 +289,86 @@ describe("POST /api/ask — answering", () => {
     expect(json().error.message).toMatch(/daily/i);
     expect(json().error.message).toMatch(/about 22 hours/);
     expect(await chats()).toHaveLength(0);
+    expect(await messages()).toHaveLength(0);
+  });
+});
+
+describe("POST /api/ask — backup answer model", () => {
+  const quotaError = () =>
+    new APICallError({
+      message: "You exceeded your current quota. Please retry in 22h19m12.17s.",
+      url: "https://generativelanguage.googleapis.com",
+      requestBodyValues: {},
+      statusCode: 429,
+      isRetryable: false,
+    });
+
+  function withBackup(reply = "Fees are due monthly, as the backup says [p. 2].") {
+    fakes.fallback = fakeAnswerModel();
+    fakes.fallback.state.reply = reply;
+    return fakes.fallback;
+  }
+
+  it("never calls the backup when the main model answers, and records which model answered", async () => {
+    const backup = withBackup();
+    const documentId = await seedDocument();
+    const { status, text } = await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
+
+    expect(status).toBe(200);
+    expect(text).toBe("Fees are due monthly [p. 2].");
+    expect(backup.model.doStreamCalls).toHaveLength(0);
+    await vi.waitFor(async () => expect(await messages()).toHaveLength(2));
+    expect((await messages())[1]).toMatchObject({ role: "assistant", model: "fake-main-model" });
+  });
+
+  it("answers with the backup, from the same prompt, when the main model fails before answering", async () => {
+    const backup = withBackup();
+    if (fakes.answer) fakes.answer.state.failWith = new Error("Internal error encountered.");
+    const documentId = await seedDocument();
+    const { status, headers, text } = await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
+
+    expect(status).toBe(200);
+    expect(text).toBe("Fees are due monthly, as the backup says [p. 2].");
+    expect(headers.get("x-chat-id")).toMatch(/^[0-9a-f]{24}$/);
+    expect(backup.sentPrompt()).toEqual(fakes.answer?.sentPrompt());
+    await vi.waitFor(async () => expect(await messages()).toHaveLength(2));
+    expect((await messages())[1]).toMatchObject({
+      role: "assistant",
+      model: "fake-backup-model",
+      citations: [{ pageNumber: 2, chunkId: expect.anything() }],
+    });
+  });
+
+  it("answers with the backup when the main model's free quota is used up", async () => {
+    withBackup();
+    if (fakes.answer) fakes.answer.state.failWith = quotaError();
+    const documentId = await seedDocument();
+    const { status, text } = await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
+
+    expect(status).toBe(200);
+    expect(text).toMatch(/backup says/);
+  });
+
+  it("502 and saves nothing when both models fail", async () => {
+    withBackup().state.failWith = new Error("Internal error encountered.");
+    if (fakes.answer) fakes.answer.state.failWith = new Error("Internal error encountered.");
+    const documentId = await seedDocument();
+    const { status, json } = await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
+
+    expect(status).toBe(502);
+    expect(json().error.code).toBe("answer_failed");
+    expect(await chats()).toHaveLength(0);
+    expect(await messages()).toHaveLength(0);
+  });
+
+  it("429 with the wait when the backup's quota is the last thing that failed", async () => {
+    withBackup().state.failWith = quotaError();
+    if (fakes.answer) fakes.answer.state.failWith = new Error("Internal error encountered.");
+    const documentId = await seedDocument();
+    const { status, json } = await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
+
+    expect(status).toBe(429);
+    expect(json().error).toMatchObject({ code: "rate_limited", retryAfterSeconds: 80_353 });
     expect(await messages()).toHaveLength(0);
   });
 });
