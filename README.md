@@ -9,7 +9,7 @@
 ![Gemini](https://img.shields.io/badge/Gemini-AI%20SDK-4285f4?logo=googlegemini&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-> **Status:** setup complete; the MVP is in progress. Upload validation and per-page text extraction are built; storage, retrieval and the chat UI are next. See the [roadmap](#roadmap).
+> **Status:** MVP complete and live at [documind99.vercel.app](https://documind99.vercel.app): Google sign-in, upload, cited answers, the page panel and chat history, with a first eval baseline below. See the [roadmap](#roadmap).
 
 ![DocuMind system architecture](docs/assets/architecture-overview.png)
 
@@ -45,13 +45,16 @@ Uploads are parsed, chunked and embedded **once**. Each question then runs one f
 
 ## Evaluation
 
-Retrieval and answer quality are measured on a hand-written eval set: 30–50 questions over public PDFs, each with the page that answers it, including questions whose answer is *not* in the documents. Results are committed with every change to chunking, retrieval or prompts, so each change has before/after numbers.
+Retrieval and answer quality are measured on a hand-written eval set ([evals/questions.jsonl](evals/questions.jsonl)): questions over public-domain PDFs (the NIST Cybersecurity Framework 2.0 and IRS Publication 501), each with the pages that answer it, including questions whose answer is *not* in the documents. `npm run eval` runs every question through the same retrieval, prompt and citation code as the app and writes the results to [evals/results](evals/results). Results are committed with every change to chunking, retrieval or prompts, so each change has before/after numbers. The set starts at 15 questions and grows to 30–50.
 
-| Metric | Target | Baseline | Current |
+| Metric | Target | Baseline (2026-10-10, 15 questions) | Current |
 | --- | --- | --- | --- |
-| Retrieval hit@5 | ≥ 85% | — | — |
-| Citation accuracy | ≥ 90% | — | — |
-| Refusal on not-in-document questions | ≥ 90% | — | — |
+| Retrieval hit@5 | ≥ 85% | 91% (10 of 11) | 91% |
+| Citation accuracy | ≥ 90% | 82% (9 of 11) | 82% |
+| Refusal on not-in-document questions | ≥ 90% | 100% (4 of 4) | 100% |
+| False refusals on answerable questions | as low as possible | 18% (2 of 11) | 18% |
+
+Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. The two misses in the baseline are false refusals: one where the answering page was retrieved but the model still refused, and one where retrieval missed a short line in a long table.
 
 ## Roadmap
 
@@ -92,6 +95,7 @@ Open http://localhost:3000. `GET /api/health` reports, by name only, any require
 | `npm run test:integration` | Integration tests against a temporary MongoDB |
 | `npm run build` | Production build |
 | `npm run db:indexes` | Create the Atlas Vector Search index (once per cluster) |
+| `npm run eval` | Run the eval set against Atlas and Gemini (paced for the free tier; uses a separate `documind_eval` database) |
 | `npm run diagrams` | Re-render the diagrams in `docs/assets/` |
 
 ### External services (all free tiers)

@@ -19,7 +19,8 @@
     "test:coverage": "vitest run --coverage",
     "check": "npm run lint && npm run typecheck && npm test",
     "diagrams": "node scripts/render-diagrams.mjs",
-    "db:indexes": "node --env-file=.env.local scripts/create-indexes.ts"
+    "db:indexes": "node --env-file=.env.local scripts/create-indexes.ts",
+    "eval": "node --env-file=.env.local --import ./scripts/register-alias.mjs scripts/eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.90",
