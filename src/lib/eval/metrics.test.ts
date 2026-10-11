@@ -1,6 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { REFUSAL } from "../rag/prompt";
-import { caseCorrect, compareRuns, parseQuestions, scoreCase, summarize, type EvalCase } from "./metrics";
+import {
+  caseCorrect,
+  compareRuns,
+  containsEvidence,
+  parseQuestions,
+  scoreCase,
+  summarize,
+  type EvalCase,
+} from "./metrics";
 
 const answerable = (overrides: Partial<EvalCase> = {}): EvalCase => ({
   question: "What is the standard deduction?",
@@ -47,6 +55,36 @@ describe("parseQuestions", () => {
   ])("rejects %s, naming the line", (_, line) => {
     expect(() => parseQuestions(`\n${line}`)).toThrow(/line 2/);
   });
+
+  it("reads the evidence phrase of an answerable question", () => {
+    const line = '{"question":"Q?","documentFile":"a.pdf","expectedPages":[2],"answerable":true,"evidence":"called the Framework"}';
+    expect(parseQuestions(line)[0]?.evidence).toBe("called the Framework");
+  });
+
+  it.each([
+    ["evidence on an unanswerable question", '{"question":"Q?","documentFile":"a.pdf","expectedPages":[],"answerable":false,"evidence":"x"}'],
+    ["blank evidence", '{"question":"Q?","documentFile":"a.pdf","expectedPages":[2],"answerable":true,"evidence":"  "}'],
+  ])("rejects %s", (_, line) => {
+    expect(() => parseQuestions(line)).toThrow(/line 1/);
+  });
+});
+
+describe("containsEvidence", () => {
+  it("ignores case, line breaks and runs of whitespace", () => {
+    expect(containsEvidence("Before version 2.0, it was called the “Framework for Improving\nCritical  Infrastructure Cybersecurity.”", "framework for improving critical infrastructure cybersecurity")).toBe(true);
+  });
+
+  it("treats curly and straight quotes alike", () => {
+    expect(containsEvidence("more than 10% of the person’s support", "more than 10% of the person's support")).toBe(true);
+  });
+
+  it("joins words hyphenated across a line break", () => {
+    expect(containsEvidence("for 2 years fol-\nlowing the year your spouse died", "2 years following the year")).toBe(true);
+  });
+
+  it("does not match text that isn't there", () => {
+    expect(containsEvidence("Refunds are accepted within 30 days.", "within 60 days")).toBe(false);
+  });
 });
 
 describe("scoreCase", () => {
@@ -71,7 +109,32 @@ describe("scoreCase", () => {
   });
 
   it("does not score retrieval or citations for unanswerable questions", () => {
-    expect(scoreCase(unanswerable())).toEqual({ hit: null, citationCorrect: null, refused: true });
+    expect(scoreCase(unanswerable())).toEqual({ hit: null, pageHit: null, citationCorrect: null, refused: true });
+  });
+});
+
+describe("scoreCase — evidence", () => {
+  const evidence = "The 2025 standard deduction is $15,750";
+  const withTexts = (texts: string[], pages = [4, 9, 12, 1, 2]) =>
+    answerable({ evidence, retrievedPages: pages, retrievedTexts: texts });
+
+  it("counts a hit only when a retrieved chunk on an expected page contains the evidence", () => {
+    expect(scoreCase(withTexts(["The 2025 standard deduction is $15,750 for single filers.", "x", "x", "x", "x"])).hit).toBe(true);
+  });
+
+  it("is a miss when the expected page was retrieved but not the chunk with the evidence", () => {
+    const score = scoreCase(withTexts(["Page 4 header and an unrelated paragraph.", "x", "x", "x", "x"]));
+    expect(score.hit).toBe(false);
+    expect(score.pageHit).toBe(true);
+  });
+
+  it("is a miss when the evidence is only on a page that isn't expected", () => {
+    expect(scoreCase(withTexts(["x", "The 2025 standard deduction is $15,750.", "x", "x", "x"])).hit).toBe(false);
+  });
+
+  it("falls back to the page when a question has no evidence or a run stored no chunk text", () => {
+    expect(scoreCase(answerable({ retrievedTexts: ["x", "x", "x", "x", "x"] })).hit).toBe(true);
+    expect(scoreCase(answerable({ evidence })).hit).toBe(true);
   });
 });
 
@@ -146,10 +209,20 @@ describe("summarize", () => {
       answerable: 4,
       unanswerable: 2,
       hitAt5: 0.75,
+      pageHitAt5: 0.75,
       citationAccuracy: 0.5,
       refusalRate: 0.5,
       falseRefusalRate: 0.25,
     });
+  });
+
+  it("reports the page-level hit rate next to the evidence-level one", () => {
+    const evidence = "deduction is $15,750";
+    const summary = summarize([
+      answerable({ evidence, retrievedTexts: ["The deduction is $15,750.", "x", "x", "x", "x"] }),
+      answerable({ evidence, retrievedTexts: ["An unrelated paragraph on page 4.", "x", "x", "x", "x"] }),
+    ]);
+    expect(summary).toMatchObject({ hitAt5: 0.5, pageHitAt5: 1 });
   });
 
   it("reports null for a rate with nothing to measure", () => {
