@@ -5,8 +5,11 @@
 ## Acceptance criteria
 
 - **008a:** the eval set grows to 30 questions (7 not answerable), targeting single lines in long lists, answers that span pages and exact identifiers. `npm run eval` prints per-question changes since the previous run, saves partial results when a daily quota runs out, records provider failures without ending the run, and can re-score a saved run with `--rescore`. A new baseline is recorded in the README.
-- **008b:** the refusal rule is reworded so answers that the sources address are not refused; false refusals drop while the refusal rate stays at or above 90%.
-- **008c:** hybrid search (vector + keyword, merged with `$rankFusion`), kept only if hit@5 and citation accuracy improve.
+- **008b:** hit@5 is measured at the passage level: each answerable question names an evidence phrase that a retrieved chunk on an expected page must contain. `npm run eval -- --retrieval` measures retrieval alone and flags evidence that isn't on the expected pages.
+- **008c:** page headers and footers that repeat across a document are removed before chunking, kept only if passage-level hit@5 improves.
+- **008d:** hybrid search (vector + keyword, merged with `$rankFusion`), kept only if hit@5 and citation accuracy improve.
+
+The original 008b (rewording the refusal rule) was dropped: the one "false refusal" was a retrieval miss hidden by page-level scoring, since the chunk holding the answer was never retrieved.
 
 ## Tests first
 
