@@ -13,3 +13,4 @@ One short record per real choice. Copy `0000-template.md`, take the next number,
 | [0007](0007-unpdf-for-text-extraction.md) | unpdf for PDF text extraction | Accepted |
 | [0008](0008-batched-ingestion-for-the-free-tier.md) | Index large documents in batches driven by the browser | Accepted |
 | [0009](0009-gemma-answers-with-gemini-backup.md) | Answer with Gemma 4 (26B A4B), backed up by Gemini 3.5 Flash | Accepted |
+| [0010](0010-hybrid-search-with-rank-fusion.md) | Hybrid search: vector and keyword, merged with `$rankFusion` | Accepted |

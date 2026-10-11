@@ -44,7 +44,7 @@ vi.mock("@/lib/ai/answer", () => ({
   },
 }));
 
-// mongodb-memory-server has no $vectorSearch. This stand-in keeps its contract:
+// mongodb-memory-server has no $rankFusion, $vectorSearch or $search. This stand-in keeps the contract:
 // only the given user's chunks of the given document, at most retrievalTopK, best first.
 vi.mock("@/lib/rag/retrieve", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/rag/retrieve")>();
@@ -159,14 +159,19 @@ describe("POST /api/ask — answering", () => {
     expect(headers.get("x-chat-id")).toMatch(/^[0-9a-f]{24}$/);
   });
 
-  it("embeds the question and retrieves only from this user's document", async () => {
+  it("embeds the question and searches only this user's document by its vector and its words", async () => {
     const documentId = await seedDocument();
     await ask({ documentId: documentId.toHexString(), question: "When are fees due?" });
 
     expect(fakes.embedder?.state.queries).toEqual(["When are fees due?"]);
     expect(retrieveChunks).toHaveBeenCalledTimes(1);
     expect(retrieveChunks).toHaveBeenCalledWith(
-      expect.objectContaining({ userId: USER_ID, documentId, queryVector: vectorFor("When are fees due?", 4) }),
+      expect.objectContaining({
+        userId: USER_ID,
+        documentId,
+        queryVector: vectorFor("When are fees due?", 4),
+        queryText: "When are fees due?",
+      }),
     );
   });
 

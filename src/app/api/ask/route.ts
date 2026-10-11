@@ -109,7 +109,7 @@ async function handleAsk(request: Request) {
     throw cause;
   }
 
-  const chunks = await retrieveChunks({ db, userId, documentId: document._id, queryVector });
+  const chunks = await retrieveChunks({ db, userId, documentId: document._id, queryVector, queryText: question });
   const history = existingChat ? await recentMessages(db, userId, existingChat._id, LIMITS.historyMessages) : [];
 
   // Wait for the first piece of the answer, so a used-up quota or a model failure is still a

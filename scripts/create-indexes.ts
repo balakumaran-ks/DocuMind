@@ -1,6 +1,7 @@
 /**
- * Creates the Atlas Vector Search index on `chunks` if it doesn't exist and
- * waits until it is queryable. Safe to run more than once.
+ * Creates the Atlas Vector Search and Atlas Search (keyword) indexes on
+ * `chunks` if they don't exist and waits until both are queryable. Safe to run
+ * more than once.
  *
  *   npm run db:indexes
  *
@@ -9,7 +10,13 @@
  */
 import { MongoClient } from "mongodb";
 import { readServerEnv } from "../src/lib/env.ts";
-import { ensureVectorIndex, VECTOR_INDEX_NAME, waitUntilQueryable } from "../src/lib/db/search-index.ts";
+import {
+  ensureTextIndex,
+  ensureVectorIndex,
+  TEXT_INDEX_NAME,
+  VECTOR_INDEX_NAME,
+  waitUntilQueryable,
+} from "../src/lib/db/search-index.ts";
 
 const env = readServerEnv();
 const client = await MongoClient.connect(env.mongodbUri, { appName: "documind-scripts" });
@@ -26,7 +33,9 @@ try {
     process.exitCode = 1;
   } else {
     console.log(`Index "${VECTOR_INDEX_NAME}": ${result.status} (${env.embeddingDimensions} dimensions, cosine).`);
-    console.log("Waiting until it is queryable...");
+    const text = await ensureTextIndex(db);
+    console.log(`Index "${TEXT_INDEX_NAME}": ${text.status} (keyword search, English analyzer).`);
+    console.log("Waiting until both are queryable...");
     const ready = await waitUntilQueryable(db);
     console.log(ready ? "Queryable." : "Still building after 2 minutes; check Atlas → Search & Vector Search.");
     if (!ready) process.exitCode = 1;

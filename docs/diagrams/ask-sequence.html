@@ -140,7 +140,7 @@
   <body>
     <header class="header">
       <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; Ask path</div>
-      <h1>One question: one vector search, one streamed answer</h1>
+      <h1>One question: one hybrid search, one streamed answer</h1>
       <p class="subtitle">
         <span class="mono">POST /api/ask</span> retrieves only from the signed-in user&rsquo;s document, grounds the
         answer in five page-tagged chunks, and saves every answer with the evidence behind it.
@@ -161,7 +161,7 @@
     </div>
     <div class="node actor accent" id="a3" style="--c: var(--green); left: 893px; top: 214px">
       <span class="badge solid" data-icon="database"></span>
-      <div class="body"><div class="title">MongoDB Atlas</div><div class="sub">data + vector index</div></div>
+      <div class="body"><div class="title">MongoDB Atlas</div><div class="sub">data + search indexes</div></div>
     </div>
     <div class="node actor accent" id="a4" style="--c: var(--blue); left: 1143px; top: 214px">
       <span class="badge solid" data-icon="sparkles"></span>
@@ -177,7 +177,7 @@
       <h3><span class="badge" style="--c: var(--teal); width: 32px; height: 32px" data-icon="shield"></span>Guardrails</h3>
       <ul>
         <li><i data-icon="lock"></i><span>Session required; <b>userId</b> comes from the cookie, never the request body.</span></li>
-        <li><i data-icon="search"></i><span>Vector search is pre-filtered by <b>userId</b> and <b>documentId</b> inside Atlas.</span></li>
+        <li><i data-icon="search"></i><span>Vector and keyword search are pre-filtered by <b>userId</b> and <b>documentId</b> inside Atlas.</span></li>
         <li><i data-icon="file"></i><span>Chunks are wrapped in <span class="mono">&lt;source page="N"&gt;</span> tags and treated as data, not instructions.</span></li>
         <li><i data-icon="bookmark"></i><span>Citations are kept only for pages that were actually retrieved.</span></li>
         <li><i data-icon="gauge"></i><span>50 questions per user per day; every answer logs latency and tokens.</span></li>
@@ -208,11 +208,11 @@
         [3, 1, "document owned &check; &middot; 12 / 50 today", C.ret, null, 458],
         [1, 4, "embed question &middot; <code>gemini-embedding-2</code>", C.blue, 3, 540],
         [4, 1, "vector[768]", C.ret, null, 566],
-        [1, 3, "<code>$vectorSearch</code> filter { userId, documentId } &middot; limit 5", C.green, 4, 610],
+        [1, 3, "<code>$rankFusion</code>: vector + keyword &middot; filter { userId, documentId } &middot; top 5", C.green, 4, 610],
         [3, 1, "5 chunks &middot; text, pageNumber, score", C.ret, null, 636],
         [1, 2, "<code>buildPrompt</code>(question, chunks, history)", C.violet, 5, 710],
         [2, 1, "rules + &lt;source page=N&gt; &times; 5", C.ret, null, 736],
-        [1, 4, "<code>streamText</code>(prompt) &middot; gemini-3.5-flash", C.blue, 6, 782],
+        [1, 4, "<code>streamText</code>(prompt) &middot; gemma-4-26b-a4b-it", C.blue, 6, 782],
         [4, 1, "token stream", C.ret, null, 808],
         [1, 0, "streamed answer with [p. N] markers", C.indigo, null, 834],
         [1, 2, "onFinish &rarr; <code>parseCitations</code>(answer, chunks)", C.violet, 7, 920],

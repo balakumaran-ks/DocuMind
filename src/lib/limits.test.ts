@@ -37,6 +37,12 @@ describe("LIMITS", () => {
     expect(LIMITS.vectorNumCandidates).toBeGreaterThanOrEqual(LIMITS.retrievalTopK * 10);
   });
 
+  it("fuses 20 results from each search before keeping the top ones", () => {
+    expect(LIMITS.fusionCandidates).toBe(20);
+    expect(LIMITS.fusionCandidates).toBeGreaterThan(LIMITS.retrievalTopK);
+    expect(LIMITS.vectorNumCandidates).toBeGreaterThanOrEqual(LIMITS.fusionCandidates * 5);
+  });
+
   it("matches the chunking sizes in ADR-0004", () => {
     expect(LIMITS.chunkSize).toBe(1200);
     expect(LIMITS.chunkOverlap).toBe(200);
