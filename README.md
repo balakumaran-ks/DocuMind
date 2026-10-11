@@ -49,12 +49,12 @@ Retrieval and answer quality are measured on a hand-written eval set ([evals/que
 
 | Metric | Target | First baseline (15 questions, Gemini 3.5 Flash) | Current (30 questions, Gemma 4 26B A4B) |
 | --- | --- | --- | --- |
-| Retrieval hit@5 | ≥ 85% | 91% (10 of 11) | 96% (22 of 23) |
+| Retrieval hit@5 (the passage with the answer is among the 5 retrieved chunks) | ≥ 85% | 91% (10 of 11, page level) | 87% (20 of 23; 96% at page level) |
 | Citation accuracy | ≥ 90% | 82% (9 of 11) | 87% (20 of 23) |
 | Refusal on not-in-document questions | ≥ 90% | 100% (4 of 4) | 100% (7 of 7) |
 | False refusals on answerable questions | as low as possible | 18% (2 of 11) | 4% (1 of 23) |
 
-Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. The current misses: one false refusal although the answering page was retrieved, one retrieval miss on a single line in a long list, and one answer that added a citation about a different case. These are the targets of the next prompt and hybrid-search changes.
+Hit@5 is measured at the passage level: each answerable question names a short evidence phrase, and a hit needs a retrieved chunk on an expected page that contains it. (Counting any chunk from the right page overstated retrieval: one "false refusal" turned out to be a page whose other chunk was retrieved.) `npm run eval -- --retrieval` measures retrieval alone with one embedding per question. Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. The current misses are three retrieval misses (a sentence at the bottom of a page, one line in a long list, and a list split across two pages) and one answer that added a citation about a different case.
 
 ## Roadmap
 
