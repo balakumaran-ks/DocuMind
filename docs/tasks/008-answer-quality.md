@@ -11,6 +11,10 @@
 
 The original 008b (rewording the refusal rule) was dropped: the one "false refusal" was a retrieval miss hidden by page-level scoring, since the chunk holding the answer was never retrieved.
 
+## Results
+
+- **008c, not adopted.** Removing repeated headers, footers and page numbers before chunking (NIST: 84 → 77 chunks; IRS: 220 → 219) lowered passage-level hit@5 from 87% to 83% (page level 96% → 91%), measured with `npm run eval -- --retrieval` ([result](../../evals/results/retrieval/2026-10-11-0812.json)). The three existing misses stayed, and "Which CSF subcategory covers maintaining inventories of hardware?" was lost: without the header, page 23 split into different chunks and the passage ranked lower. Chunk boundaries matter more than the header text, so the change was dropped. The eval now re-indexes its documents whenever extracted text or chunk settings change, reusing vectors for unchanged chunks.
+
 ## Tests first
 
 - Unit: per-question correctness and run comparison in `src/lib/eval/metrics.ts`.

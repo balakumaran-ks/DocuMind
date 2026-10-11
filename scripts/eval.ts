@@ -324,40 +324,42 @@ async function prepare(db: Db) {
 
 /**
  * Stores and embeds each PDF the way an upload does, then waits until search
- * sees its chunks. A ready copy with the same content and embedding model is
- * reused; anything else for that file is deleted and ingested again.
+ * sees its chunks. A ready copy is reused only if its extracted text, chunk
+ * settings and embedding model all match (`evalKey`), so a change to
+ * extraction or chunking re-indexes. The new copy is indexed before the old
+ * one is deleted, so chunks whose text didn't change reuse their vectors.
  */
 async function ingest(db: Db, files: string[]): Promise<Map<string, ObjectId>> {
   const ids = new Map<string, ObjectId>();
   for (const file of files) {
     const bytes = new Uint8Array(readFileSync(new URL(`docs/${file}`, root)));
-    const sha256 = createHash("sha256").update(bytes).digest("hex");
-    const existing = await db.collection("documents").findOne({
-      userId: EVAL_USER,
-      filename: file,
-      sha256,
-      status: "ready",
-      embeddingModel: embedder.model,
-    });
+    const pageCount = await countPages(bytes);
+    if (pageCount > LIMITS.maxPagesPerDocument) throw new Error(`${file} has ${pageCount} pages; the limit is ${LIMITS.maxPagesPerDocument}.`);
+    const pages = await extractPages(bytes);
+    const evalKey = createHash("sha256")
+      .update(JSON.stringify([embedder.model, LIMITS.chunkSize, LIMITS.chunkOverlap, pages.map((page) => page.text)]))
+      .digest("hex");
+
+    const existing = await db.collection("documents").findOne({ userId: EVAL_USER, filename: file, evalKey, status: "ready" });
     if (existing) {
       console.log(`Reusing ${file} (${String(existing.chunkCount)} chunks)`);
       ids.set(file, existing._id);
       continue;
     }
+
     const stale = await db.collection("documents").find({ userId: EVAL_USER, filename: file }).toArray();
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const documentId = await insertDocumentWithPages(db, { userId: EVAL_USER, filename: file, sizeBytes: bytes.length, sha256, pages });
+    const { chunkCount, reused } = await ingestDocument({ db, embedder, userId: EVAL_USER, documentId, pages });
+    await db.collection("documents").updateOne({ _id: documentId, userId: EVAL_USER }, { $set: { evalKey } });
+    console.log(`Ingested ${file}: ${pageCount} pages, ${chunkCount} chunks (${reused} vectors reused)`);
+
     for (const document of stale) {
       await Promise.all(
         ["pages", "chunks"].map((name) => db.collection(name).deleteMany({ userId: EVAL_USER, documentId: document._id })),
       );
       await db.collection("documents").deleteOne({ _id: document._id, userId: EVAL_USER });
     }
-
-    const pageCount = await countPages(bytes);
-    if (pageCount > LIMITS.maxPagesPerDocument) throw new Error(`${file} has ${pageCount} pages; the limit is ${LIMITS.maxPagesPerDocument}.`);
-    const pages = await extractPages(bytes);
-    const documentId = await insertDocumentWithPages(db, { userId: EVAL_USER, filename: file, sizeBytes: bytes.length, sha256, pages });
-    const { chunkCount } = await ingestDocument({ db, embedder, userId: EVAL_USER, documentId, pages });
-    console.log(`Ingested ${file}: ${pageCount} pages, ${chunkCount} chunks`);
     await waitUntilSearchable(db, documentId, chunkCount);
     ids.set(file, documentId);
   }
