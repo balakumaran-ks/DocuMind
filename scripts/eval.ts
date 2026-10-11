@@ -18,6 +18,10 @@
  *
  * re-scores the latest saved run against the current questions file without
  * calling any model, after expected pages are corrected.
+ *
+ *   npm run eval -- --retrieval
+ *
+ * measures retrieval only (one embedding per question, no answers).
  */
 import { createHash } from "node:crypto";
 import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
@@ -30,7 +34,7 @@ import { ensureChunkIndexes } from "@/lib/db/chunks";
 import { ensureIndexes, insertDocumentWithPages } from "@/lib/db/documents";
 import { ensureVectorIndex, waitUntilQueryable } from "@/lib/db/search-index";
 import { readServerEnv } from "@/lib/env";
-import { compareRuns, parseQuestions, summarize, type EvalCase } from "@/lib/eval/metrics";
+import { compareRuns, containsEvidence, parseQuestions, scoreCase, summarize, type EvalCase } from "@/lib/eval/metrics";
 import { ingestDocument } from "@/lib/ingest";
 import { LIMITS } from "@/lib/limits";
 import { countPages, extractPages } from "@/lib/pdf/extract";
@@ -60,6 +64,68 @@ try {
   await prepare(db);
   const documentIds = await ingest(db, [...new Set(questions.map((q) => q.documentFile))]);
 
+  if (process.argv.includes("--retrieval")) {
+    await retrievalOnly(db, documentIds);
+  } else {
+    await answerAll(db, documentIds);
+  }
+} finally {
+  await client.close();
+}
+
+/**
+ * Retrieval only: one embedding per question and no answers, so chunking and
+ * retrieval changes can be measured cheaply. Results go to results/retrieval/.
+ */
+async function retrievalOnly(db: Db, documentIds: Map<string, ObjectId>) {
+  const cases: EvalCase[] = [];
+  for (const q of questions) {
+    const documentId = documentIds.get(q.documentFile);
+    if (!documentId) throw new Error(`No document for ${q.documentFile}`);
+    const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector: await embedder.embedQuery(q.question) });
+    cases.push({
+      ...q,
+      retrievedPages: chunks.map((chunk) => chunk.pageNumber),
+      retrievedTexts: chunks.map((chunk) => chunk.text),
+      citedPages: [],
+      answer: "",
+    });
+  }
+
+  // An evidence phrase that isn't on any expected page is a mistake in the answer key, not a retrieval miss.
+  for (const q of questions) {
+    const documentId = documentIds.get(q.documentFile);
+    if (!q.evidence || !documentId) continue;
+    const onExpectedPages = await db
+      .collection("chunks")
+      .find({ userId: EVAL_USER, documentId, pageNumber: { $in: q.expectedPages } }, { projection: { text: 1 } })
+      .toArray();
+    if (!onExpectedPages.some((chunk) => containsEvidence(String(chunk.text), q.evidence ?? ""))) {
+      console.log(`  CHECK THE ANSWER KEY: "${q.evidence}" is not on pages ${q.expectedPages.join(",")} for "${q.question}"`);
+    }
+  }
+
+  const summary = summarize(cases);
+  const percent = (value: number | null) => (value === null ? "n/a" : `${Math.round(value * 100)}%`);
+  console.log(`\nRetrieval only, ${summary.answerable} answerable questions`);
+  console.log(`hit@5              ${percent(summary.hitAt5)} (page only: ${percent(summary.pageHitAt5)})`);
+  for (const c of cases) {
+    if (c.answerable && !scoreCase(c).hit) {
+      console.log(`  miss: ${c.question}\n        retrieved pages ${c.retrievedPages.join(",")}, expected ${c.expectedPages.join(",")}`);
+    }
+  }
+
+  const dir = new URL("retrieval/", resultsDir);
+  mkdirSync(dir, { recursive: true });
+  const runAt = new Date().toISOString();
+  const name = `${runAt.slice(0, 10)}-${runAt.slice(11, 13)}${runAt.slice(14, 16)}.json`;
+  const settings = { embeddingModel: env.embeddingModel, dimensions: env.embeddingDimensions, limits: LIMITS };
+  writeFileSync(new URL(name, dir), `${JSON.stringify({ date: runAt.slice(0, 10), runAt, mode: "retrieval", settings, summary, cases }, null, 2)}\n`);
+  console.log(`\nWrote evals/results/retrieval/${name}`);
+}
+
+/** The full eval: retrieval, an answer per question, and the scores. */
+async function answerAll(db: Db, documentIds: Map<string, ObjectId>) {
   const cases: (EvalCase & { latencyMs: number })[] = [];
   let stoppedEarly: string | null = null;
   const failures: { question: string; error: string }[] = [];
@@ -89,6 +155,7 @@ try {
     const result = {
       ...q,
       retrievedPages: chunks.map((chunk) => chunk.pageNumber),
+      retrievedTexts: chunks.map((chunk) => chunk.text),
       citedPages: parseCitations(text, chunks).map((citation) => citation.pageNumber),
       answer: text,
       latencyMs: Date.now() - started,
@@ -101,8 +168,6 @@ try {
 
   const settings = { chatModel: env.chatModel, embeddingModel: env.embeddingModel, dimensions: env.embeddingDimensions, limits: LIMITS };
   report({ settings, cases, ...(stoppedEarly ? { stoppedEarly } : {}), ...(failures.length > 0 ? { failures } : {}) });
-} finally {
-  await client.close();
 }
 
 type Run = {
@@ -120,7 +185,7 @@ function report(run: Run) {
   console.log(`\nAnswer model: ${run.settings.chatModel}${run.stoppedEarly ? " (partial run)" : ""}`);
   console.log(`${summary.questions} questions (${summary.answerable} answerable, ${summary.unanswerable} not)`);
   if (run.failures) console.log(`provider errors    ${run.failures.length} question(s) not scored`);
-  console.log(`hit@5              ${percent(summary.hitAt5)}`);
+  console.log(`hit@5              ${percent(summary.hitAt5)} (page only: ${percent(summary.pageHitAt5)})`);
   console.log(`citation accuracy  ${percent(summary.citationAccuracy)}`);
   console.log(`refusal rate       ${percent(summary.refusalRate)}`);
   console.log(`false refusals     ${percent(summary.falseRefusalRate)}`);
