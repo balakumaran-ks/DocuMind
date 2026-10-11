@@ -95,14 +95,14 @@
         width: 1588px;
         height: 3px;
         border-radius: 2px;
-        background: linear-gradient(90deg, #10b981 0 7%, #cbd5e1 7% 100%);
+        background: linear-gradient(90deg, #10b981 0 35%, #cbd5e1 35% 100%);
       }
       .phase {
         position: absolute;
         z-index: 3;
-        top: 470px;
+        top: 460px;
         width: 250px;
-        height: 310px;
+        height: 345px;
         flex-direction: column;
         gap: 0;
       }
@@ -188,7 +188,7 @@
 
     <!-- one week = 264.67px starting at x=56 -->
     <div class="bar" style="--c: #10b981; left: 56px; width: 76px; padding: 0 9px; gap: 5px; font-size: 12px"><span data-icon="check"></span>Setup</div>
-    <div class="bar" style="--c: var(--indigo); left: 138px; width: 441px"><span data-icon="rocket"></span>MVP: upload, ask, cite, refuse</div>
+    <div class="bar" style="--c: #10b981; left: 138px; width: 441px"><span data-icon="check"></span>MVP: upload, ask, cite, refuse</div>
     <div class="bar" style="--c: var(--teal); left: 585px; width: 259px"><span data-icon="zap"></span>V1 features</div>
     <div class="bar" style="--c: var(--blue); left: 850px; width: 259px"><span data-icon="target"></span>Retrieval quality</div>
     <div class="bar" style="--c: var(--rose); left: 1115px; width: 259px"><span data-icon="shield"></span>Hardening</div>
@@ -196,7 +196,7 @@
 
     <div class="rail"></div>
     <div class="gate" style="left: 135px"><div class="diamond" style="background: #10b981"><b>1</b></div><div class="glabel">Setup gate<small>CI green &check;</small></div></div>
-    <div class="gate" style="left: 582px"><div class="diamond"><b>2</b></div><div class="glabel">MVP gate<small>live demo + 15 evals</small></div></div>
+    <div class="gate" style="left: 582px"><div class="diamond" style="background: #10b981"><b>2</b></div><div class="glabel">MVP gate<small>live demo + 15 evals &check;</small></div></div>
     <div class="gate" style="left: 1112px"><div class="diamond"><b>3</b></div><div class="glabel">Quality gate<small>hit@5 &ge; 85%</small></div></div>
     <div class="gate" style="left: 1377px"><div class="diamond"><b>4</b></div><div class="glabel">Ship gate<small>E2E + security pass</small></div></div>
 
@@ -212,17 +212,17 @@
         <li class="done">Atlas cluster + Gemini key</li>
       </ul>
     </div>
-    <div class="node phase accent" style="--c: var(--indigo); left: 323.6px">
-      <span class="status next">IN PROGRESS</span>
+    <div class="node phase accent" style="--c: #10b981; left: 323.6px">
+      <span class="status done">DONE</span>
       <div class="wk">Weeks 1&ndash;2</div>
       <div class="title">MVP</div>
       <ul>
-        <li>Upload + per-page extraction</li>
-        <li>Page-bounded chunker with overlap</li>
-        <li>Embed + vector index (userId)</li>
-        <li>Ask route, prompt with page tags</li>
-        <li>Chat UI, citations, sign-in, history</li>
-        <li>First 15 evals, deploy</li>
+        <li class="done">Upload + per-page extraction</li>
+        <li class="done">Page-bounded chunker with overlap</li>
+        <li class="done">Embed + vector index (userId)</li>
+        <li class="done">Ask route, prompt with page tags</li>
+        <li class="done">Chat UI, citations, sign-in, history</li>
+        <li class="done">First 15 evals, deploy</li>
       </ul>
     </div>
     <div class="node phase" style="--c: var(--teal); left: 591.2px">
@@ -234,11 +234,14 @@
         <li>Thumbs up/down on answers</li>
       </ul>
     </div>
-    <div class="node phase" style="--c: var(--blue); left: 858.8px">
+    <div class="node phase accent" style="--c: var(--blue); left: 858.8px">
+      <span class="status next">IN PROGRESS</span>
       <div class="wk">Week 4</div>
       <div class="title">Retrieval quality</div>
       <ul>
-        <li>30&ndash;50 eval questions, baseline</li>
+        <li class="done">30 eval questions, baseline</li>
+        <li class="done">Passage-level hit@5</li>
+        <li class="done">Header/footer stripping: tried, dropped</li>
         <li>2&ndash;3 chunk sizes, keep best hit@5</li>
         <li>Hybrid search + reciprocal rank fusion</li>
         <li>Rerank top 20 &rarr; 5 if evals improve</li>
