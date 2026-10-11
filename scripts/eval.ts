@@ -6,9 +6,12 @@
  *
  *   npm run eval
  *
- * Uses real Atlas Vector Search and real Gemini calls (one embedding and one
- * answer per question, plus the documents' chunks), so it reads .env.local.
- * The database is EVAL_DB (default "documind_eval"), never the app's.
+ * Uses real Atlas search and real Gemini calls (one embedding and one answer
+ * per question, plus the documents' chunks), so it reads .env.local.
+ * Eval documents live in the app database under the user "eval", which no
+ * sign-in can produce (app users are "google:<id>"): Atlas free clusters allow
+ * only three search indexes, so a separate database can't have its own.
+ * Set EVAL_DB to use another database.
  * Calls are paced for the free tier (EVAL_EMBEDS_PER_MINUTE, default 90;
  * EVAL_ANSWERS_PER_MINUTE, default 4), and unchanged documents are reused.
  * If a daily quota runs out, the run stops and saves what it has. Set
@@ -32,7 +35,7 @@ import { EmbeddingRateLimitError, getEmbedder, type Embedder } from "@/lib/ai/em
 import { describeWait, isDailyQuota, quotaRetrySeconds } from "@/lib/ai/quota";
 import { ensureChunkIndexes } from "@/lib/db/chunks";
 import { ensureIndexes, insertDocumentWithPages } from "@/lib/db/documents";
-import { ensureVectorIndex, waitUntilQueryable } from "@/lib/db/search-index";
+import { ensureTextIndex, ensureVectorIndex, TEXT_INDEX_NAME, waitUntilQueryable } from "@/lib/db/search-index";
 import { readServerEnv } from "@/lib/env";
 import { compareRuns, containsEvidence, parseQuestions, scoreCase, summarize, type EvalCase } from "@/lib/eval/metrics";
 import { ingestDocument } from "@/lib/ingest";
@@ -40,7 +43,7 @@ import { LIMITS } from "@/lib/limits";
 import { countPages, extractPages } from "@/lib/pdf/extract";
 import { parseCitations } from "@/lib/rag/citations";
 import { buildPrompt } from "@/lib/rag/prompt";
-import { retrieveChunks } from "@/lib/rag/retrieve";
+import { retrieveChunks, vectorSearchStage } from "@/lib/rag/retrieve";
 
 const EVAL_USER = "eval";
 const root = new URL("../evals/", import.meta.url);
@@ -60,7 +63,7 @@ if (process.argv.includes("--rescore")) {
 const client = await MongoClient.connect(env.mongodbUri, { appName: "documind-eval" });
 
 try {
-  const db = client.db(process.env.EVAL_DB ?? "documind_eval");
+  const db = client.db(process.env.EVAL_DB ?? env.mongodbDb);
   await prepare(db);
   const documentIds = await ingest(db, [...new Set(questions.map((q) => q.documentFile))]);
 
@@ -82,7 +85,8 @@ async function retrievalOnly(db: Db, documentIds: Map<string, ObjectId>) {
   for (const q of questions) {
     const documentId = documentIds.get(q.documentFile);
     if (!documentId) throw new Error(`No document for ${q.documentFile}`);
-    const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector: await embedder.embedQuery(q.question) });
+    const queryVector = await embedder.embedQuery(q.question);
+    const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector, queryText: q.question });
     cases.push({
       ...q,
       retrievedPages: chunks.map((chunk) => chunk.pageNumber),
@@ -244,7 +248,7 @@ async function askOne(db: Db, documentId: ObjectId, question: string) {
   for (let attempt = 1; ; attempt++) {
     try {
       const queryVector = await embedder.embedQuery(question);
-      const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector });
+      const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector, queryText: question });
       const prompt = buildPrompt({ question, chunks, history: [] });
       await reserveAnswer();
       const answerStarted = Date.now();
@@ -313,13 +317,14 @@ function paced(inner: Embedder, perMinute: number): Embedder {
   };
 }
 
-/** Indexes, and a queryable vector index. Earlier eval documents are kept and reused when unchanged. */
+/** Indexes, and queryable search indexes. Earlier eval documents are kept and reused when unchanged. */
 async function prepare(db: Db) {
   await ensureIndexes(db);
   await ensureChunkIndexes(db);
   const index = await ensureVectorIndex(db, env.embeddingDimensions);
-  if (index.status === "mismatch") throw new Error("The eval database's vector index has different dimensions; drop it in Atlas.");
-  if (!(await waitUntilQueryable(db))) throw new Error("The vector index is still building; run the eval again in a minute.");
+  if (index.status === "mismatch") throw new Error("The vector index has different dimensions; drop it in Atlas.");
+  await ensureTextIndex(db);
+  if (!(await waitUntilQueryable(db))) throw new Error("The search indexes are still building; run the eval again in a minute.");
 }
 
 /**
@@ -366,14 +371,35 @@ async function ingest(db: Db, files: string[]): Promise<Map<string, ObjectId>> {
   return ids;
 }
 
-/** Atlas indexes new vectors asynchronously; wait until a search returns as many chunks as it should. */
+/**
+ * Atlas indexes new chunks asynchronously; wait until the vector search returns
+ * as many chunks as it should and the keyword index holds all of them.
+ */
 async function waitUntilSearchable(db: Db, documentId: ObjectId, chunkCount: number) {
   const probe = await db.collection("chunks").findOne({ userId: EVAL_USER, documentId });
   if (!probe) return;
-  const wanted = Math.min(LIMITS.retrievalTopK, chunkCount);
+  const search = { userId: EVAL_USER, documentId, queryVector: probe.embedding, queryText: String(probe.text) };
+  const wanted = Math.min(LIMITS.fusionCandidates, chunkCount);
+  const keywordCount = [
+    {
+      $searchMeta: {
+        index: TEXT_INDEX_NAME,
+        compound: {
+          filter: [
+            { equals: { path: "userId", value: EVAL_USER } },
+            { equals: { path: "documentId", value: documentId } },
+          ],
+        },
+        count: { type: "total" },
+      },
+    },
+  ];
   for (let attempt = 0; attempt < 40; attempt++) {
-    const found = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector: probe.embedding });
-    if (found.length >= wanted) return;
+    const [vector, [meta]] = await Promise.all([
+      db.collection("chunks").aggregate([vectorSearchStage(search)]).toArray(),
+      db.collection("chunks").aggregate<{ count?: { total?: number } }>(keywordCount).toArray(),
+    ]);
+    if (vector.length >= wanted && meta?.count?.total === chunkCount) return;
     await new Promise((resolve) => setTimeout(resolve, 3_000));
   }
   throw new Error("Chunks are still not searchable after 2 minutes.");

@@ -25,8 +25,10 @@ export const LIMITS = {
   ingestLockSeconds: 90,
   /** A provider wait longer than this means a daily quota: report it instead of counting down. */
   quotaWaitMaxSeconds: 300,
-  /** Nearest neighbours the vector search considers before keeping the top `retrievalTopK`. */
+  /** Nearest neighbours the vector search considers before returning its best `fusionCandidates`. */
   vectorNumCandidates: 100,
+  /** Results each search (vector and keyword) passes to rank fusion, which keeps the top `retrievalTopK`. */
+  fusionCandidates: 20,
   /** Earlier chat messages (questions and answers) sent with each new question. */
   historyMessages: 6,
   /** Longest question accepted by the ask route. */
