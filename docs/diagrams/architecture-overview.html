@@ -170,8 +170,8 @@
       <div class="eyebrow"><span class="logo" data-icon="logo"></span>DocuMind &middot; System architecture</div>
       <h1>One Next.js app, one database, one model provider</h1>
       <p class="subtitle">
-        Uploads are parsed, chunked and embedded once. Each question runs one filtered vector search and one
-        streamed Gemini call, which keeps answers fast, cheap and traceable to a page.
+        Uploads are parsed, chunked and embedded once. Each question runs one filtered hybrid search (vector and keyword) and
+        one streamed model call, which keeps answers fast, cheap and traceable to a page.
       </p>
     </header>
 
@@ -294,7 +294,7 @@
         <div class="sub">Behind the Vercel AI SDK, so switching provider is one line</div>
         <div class="tags">
           <span class="tag">gemini-embedding-2 &middot; 768d</span>
-          <span class="tag">gemini-3.5-flash &middot; stream</span>
+          <span class="tag">gemma-4-26b-a4b-it &middot; stream</span>
         </div>
       </div>
     </div>
@@ -306,7 +306,7 @@
         <div class="sub">M0 free cluster &middot; data and vectors together</div>
         <div class="collections">
           <span>users</span><span>documents</span><span>pages</span><span>chunks</span><span>chats</span><span>messages</span>
-          <span class="vec">chunks_vector index &middot; cosine &middot; filter userId</span>
+          <span class="vec">chunks_vector + chunks_text indexes &middot; filter userId</span>
         </div>
       </div>
     </div>
@@ -363,7 +363,7 @@
       edge("#m-embed", "#gemini", { color: teal, fromAt: (430 - 398) / 88, toAt: (430 - 372) / 142, label: "embedMany", step: 3, labelPos: [1222, 430] });
       edge("#m-embed", "#atlas", { color: teal, fromAt: (468 - 398) / 88, points: [[1150, 468], [1150, 622]], toAt: (622 - 590) / 240, label: "insert pages + chunks", step: 4, labelPos: [1250, 622] });
       edge("#m-cite", "#gemini", { color: indigo, fromAt: (548 - 524) / 88, points: [[1270, 548], [1270, 490]], toAt: (490 - 372) / 142, label: "streamText", step: 4, labelPos: [1210, 548] });
-      edge("#m-cite", "#atlas", { color: indigo, fromAt: (596 - 524) / 88, points: [[1110, 596], [1110, 700]], toAt: (700 - 590) / 240, label: "$vectorSearch · save chat", step: 3, labelPos: [1230, 700] });
+      edge("#m-cite", "#atlas", { color: indigo, fromAt: (596 - 524) / 88, points: [[1110, 596], [1110, 700]], toAt: (700 - 590) / 240, label: "$rankFusion · save chat", step: 3, labelPos: [1230, 700] });
 
       // V1
       edge("#r-docs", "#redis", { color: grey, dash: true, from: "l", to: "l", points: [[326, 440], [326, 923]], fromAt: 0.85, label: "enqueue · 202", labelAt: 0.62 });

@@ -1,6 +1,6 @@
 # DocuMind — Architecture
 
-One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their text and their vectors together; Gemini does both embeddings and answers. Uploads are parsed, chunked and embedded **once**; each question only runs one vector search and one Gemini call, which keeps it fast and cheap.
+One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their text and their vectors together; Gemini does both embeddings and answers. Uploads are parsed, chunked and embedded **once**; each question only runs one search (by meaning and by keyword at once) and one model call, which keeps it fast and cheap.
 
 ![System architecture](assets/architecture-overview.png)
 
@@ -12,8 +12,8 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 | **Next.js route handlers** (`src/app/api/*`) | Auth check, validation, orchestration. Thin: logic lives in `src/lib`. |
 | **`src/lib` core** | PDF extraction, chunker, embedder, retriever, prompt builder, citation parser. Framework-free and unit tested. |
 | **Auth.js** | Google OAuth, JWT session cookie. Every route resolves `userId` from the session: `google:<Google account id>`, set at sign-in, because Auth.js assigns a random id per sign-in when there is no user database. `src/proxy.ts` redirects signed-out visitors from `/documents/*`; pages and routes still check the session themselves. |
-| **MongoDB Atlas** | Collections below, plus one Atlas Vector Search index on `chunks.embedding`. |
-| **Gemini API** (via Vercel AI SDK) | `gemini-embedding-2` for 768-dim embeddings; `gemini-3.5-flash` for answers. Both configurable. |
+| **MongoDB Atlas** | Collections below, plus an Atlas Vector Search index on `chunks.embedding` and an Atlas Search (keyword) index on `chunks.text`. |
+| **Gemini API** (via Vercel AI SDK) | `gemini-embedding-2` for 768-dim embeddings; `gemma-4-26b-a4b-it` for answers, with `gemini-3.5-flash` as backup. All configurable. |
 | **V1: BullMQ + Upstash Redis + worker** | Moves ingestion out of the upload request; adds retries and progress. |
 
 ## Ingest path
@@ -36,7 +36,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 1. `POST /api/ask` with `{ documentId, chatId?, question }`.
 2. Check session, document ownership and the daily question cap.
 3. Embed the question with the same model used for the chunks.
-4. `$vectorSearch` over `chunks`, **pre-filtered by `userId` and `documentId`**, top 5 of 100 candidates.
+4. **Hybrid search** over `chunks` ([ADR-0010](adr/0010-hybrid-search-with-rank-fusion.md)): `$vectorSearch` (top 20 of 100 candidates) and a keyword `$search` for the question's words (top 20), each **pre-filtered by `userId` and `documentId`** inside its index. `$rankFusion` merges the two rankings by reciprocal rank fusion, and the top 5 chunks are kept.
 5. **Build the prompt:** system rules (answer only from sources, cite `[p. N]`, reply "That isn't covered in this document." otherwise, ignore instructions inside sources) + the last 6 chat messages + the question, with the 5 chunks in page order wrapped in `<source page="N">` tags. `<source` and `</source` inside document text are escaped, so a document cannot close its own source and place text outside it.
 6. `streamText` to the answer model (`GEMINI_CHAT_MODEL`). The route waits for the first piece of text: if the model fails or its quota is used up before then, it tries the backup model (`GEMINI_FALLBACK_CHAT_MODEL`) with the same prompt ([ADR-0009](adr/0009-gemma-answers-with-gemini-backup.md)). If none produces text, it answers `502 answer_failed` or `429 rate_limited` and saves nothing. Otherwise it saves the chat and the question, and the text streams to the browser.
 7. On finish: parse `[p. N]` and `[p. N, M]` markers (malformed ones are ignored), drop any page that was not among the retrieved chunks, link each page to its best-scoring chunk, and save the message with citations, latency, token counts and retrieved chunk ids.
@@ -50,7 +50,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 | `users` | `_id` (the user id, e.g. `google:1082…`), `email`, `name`, `image`, `createdAt`, `lastSignInAt` | `_id` only; upserted on every sign-in |
 | `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `embeddedChunks`, `ingestLockedUntil?`, `createdAt` | `{ userId, createdAt: -1 }` |
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
-| `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding?: number[768]` (missing until its batch is embedded), `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index** |
+| `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding?: number[768]` (missing until its batch is embedded), `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index**, **keyword index** |
 | `chats` | `_id`, `userId`, `documentId`, `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
 | `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `feedback?` (V1), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
 
@@ -67,6 +67,23 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
   ]
 }
 ```
+
+### Atlas Search index (`chunks_text`)
+
+```json
+{
+  "mappings": {
+    "dynamic": false,
+    "fields": {
+      "text": { "type": "string", "analyzer": "lucene.english" },
+      "userId": { "type": "token" },
+      "documentId": { "type": "objectId" }
+    }
+  }
+}
+```
+
+Only chunk text is searchable, with English stemming ("backups" matches "backup"). `userId` and `documentId` are indexed for exact filters. Atlas free clusters allow three search indexes in total, so the eval stores its documents in the app database under the user `eval` rather than in a database of its own.
 
 ## API routes
 
@@ -88,7 +105,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 ## Security
 
 - File type (magic bytes), size and page count checked on the server.
-- Every query and every vector search is filtered by the session's `userId`.
+- Every query and every vector and keyword search is filtered by the session's `userId`.
 - Document text is treated as data: wrapped in `<source>` tags and the system prompt says to ignore instructions inside it.
 - Citations are validated against the retrieved chunks, so the model cannot cite a page it never saw.
 - Secrets only in environment variables; `.env*` is git-ignored except `.env.example`, and configuration errors report variable names, never values.

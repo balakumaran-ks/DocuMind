@@ -19,11 +19,11 @@
 - **Ask questions** and get a streamed answer grounded in the five most relevant passages.
 - **Page-level citations:** every `[p. N]` in an answer is clickable and opens that page's text.
 - **Refuses instead of guessing** when the document does not contain the answer.
-- **Private by design:** Google sign-in, and every query and vector search is filtered by user.
+- **Private by design:** Google sign-in, and every query and search is filtered by user.
 
 ## How it works
 
-Uploads are parsed, chunked and embedded **once**. Each question then runs one filtered vector search and one streamed Gemini call, which keeps answers fast, cheap and traceable to a page.
+Uploads are parsed, chunked and embedded **once**. Each question then runs one filtered hybrid search (by meaning and by keyword, merged by rank) and one streamed model call, which keeps answers fast, cheap and traceable to a page.
 
 | Ingest path | Ask path |
 | --- | --- |
@@ -37,7 +37,7 @@ Uploads are parsed, chunked and embedded **once**. Each question then runs one f
 | --- | --- | --- |
 | Frontend + API | Next.js (App Router), TypeScript, Tailwind CSS | One codebase and one deploy ([ADR-0001](docs/adr/0001-single-nextjs-app.md)) |
 | Auth | Auth.js with Google sign-in | No passwords to store; little code |
-| Database + vectors | MongoDB Atlas + Atlas Vector Search | Data and embeddings in one place ([ADR-0002](docs/adr/0002-mongodb-atlas-vector-search.md)) |
+| Database + search | MongoDB Atlas, Atlas Vector Search + Atlas Search | Data and embeddings in one place; vector and keyword results merged with `$rankFusion` ([ADR-0002](docs/adr/0002-mongodb-atlas-vector-search.md), [ADR-0010](docs/adr/0010-hybrid-search-with-rank-fusion.md)) |
 | PDF parsing | unpdf (PDF.js packaged for serverless) | Text per page, which citations depend on |
 | LLM + embeddings | Gemma 4 for answers (Gemini 3.5 Flash as backup) and Gemini embeddings, via the Vercel AI SDK | Free tier; models are set by environment variables ([ADR-0003](docs/adr/0003-gemini-via-vercel-ai-sdk.md), [ADR-0009](docs/adr/0009-gemma-answers-with-gemini-backup.md)) |
 | Queue (V1) | BullMQ + Upstash Redis | Background ingestion with retries and progress |
@@ -47,14 +47,14 @@ Uploads are parsed, chunked and embedded **once**. Each question then runs one f
 
 Retrieval and answer quality are measured on a hand-written eval set ([evals/questions.jsonl](evals/questions.jsonl)): questions over public-domain PDFs (the NIST Cybersecurity Framework 2.0 and IRS Publication 501), each with the pages that answer it, including questions whose answer is *not* in the documents. `npm run eval` runs every question through the same retrieval, prompt and citation code as the app and writes the results to [evals/results](evals/results). Results are committed with every change to chunking, retrieval, prompts or models, so each change has before/after numbers. Each run also prints which questions changed since the previous one, and `npm run eval -- --rescore` re-scores a saved run after expected pages are corrected, without calling any model.
 
-| Metric | Target | First baseline (15 questions, Gemini 3.5 Flash) | Current (30 questions, Gemma 4 26B A4B) |
+| Metric | Target | First baseline (15 questions, Gemini 3.5 Flash) | Current (30 questions, Gemma 4 26B A4B, hybrid search) |
 | --- | --- | --- | --- |
-| Retrieval hit@5 (the passage with the answer is among the 5 retrieved chunks) | ≥ 85% | 91% (10 of 11, page level) | 87% (20 of 23; 96% at page level) |
-| Citation accuracy | ≥ 90% | 82% (9 of 11) | 87% (20 of 23) |
+| Retrieval hit@5 (the passage with the answer is among the 5 retrieved chunks) | ≥ 85% | 91% (10 of 11, page level) | 96% (22 of 23; 100% at page level) |
+| Citation accuracy | ≥ 90% | 82% (9 of 11) | 96% (22 of 23) |
 | Refusal on not-in-document questions | ≥ 90% | 100% (4 of 4) | 100% (7 of 7) |
-| False refusals on answerable questions | as low as possible | 18% (2 of 11) | 4% (1 of 23) |
+| False refusals on answerable questions | as low as possible | 18% (2 of 11) | 0% (0 of 23) |
 
-Hit@5 is measured at the passage level: each answerable question names a short evidence phrase, and a hit needs a retrieved chunk on an expected page that contains it. (Counting any chunk from the right page overstated retrieval: one "false refusal" turned out to be a page whose other chunk was retrieved.) `npm run eval -- --retrieval` measures retrieval alone with one embedding per question. Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. The current misses are three retrieval misses (a sentence at the bottom of a page, one line in a long list, and a list split across two pages) and one answer that added a citation about a different case.
+Hit@5 is measured at the passage level: each answerable question names a short evidence phrase, and a hit needs a retrieved chunk on an expected page that contains it. (Counting any chunk from the right page overstated retrieval: one "false refusal" turned out to be a page whose other chunk was retrieved.) `npm run eval -- --retrieval` measures retrieval alone with one embedding per question. Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. Hybrid search (vector and keyword results merged by rank, [ADR-0010](docs/adr/0010-hybrid-search-with-rank-fusion.md)) raised both passage-level hit@5 and citation accuracy from 87% to 96%. The one remaining miss is a list split across two pages: its opening sentence ("There are five filing statuses") isn't retrieved, so the answer names all five statuses but cites the pages describing each one, which strict scoring counts as wrong.
 
 ## Roadmap
 
@@ -94,13 +94,13 @@ Open http://localhost:3000. `GET /api/health` reports, by name only, any require
 | `npm run test:unit` | Unit and component tests (fast, no database; components render in jsdom) |
 | `npm run test:integration` | Integration tests against a temporary MongoDB |
 | `npm run build` | Production build |
-| `npm run db:indexes` | Create the Atlas Vector Search index (once per cluster) |
-| `npm run eval` | Run the eval set against Atlas and Gemini (paced for the free tier; uses a separate `documind_eval` database) |
+| `npm run db:indexes` | Create the Atlas vector and keyword search indexes (once per cluster) |
+| `npm run eval` | Run the eval set against Atlas and Gemini (paced for the free tier; stores its documents under the user `eval`) |
 | `npm run diagrams` | Re-render the diagrams in `docs/assets/` |
 
 ### External services (all free tiers)
 
-1. **MongoDB Atlas:** create an M0 cluster and a database user, and allow your IP address. Copy the connection string into `MONGODB_URI`, replacing both `<db_username>` and `<db_password>`. Then run `npm run db:indexes` once to create the vector search index.
+1. **MongoDB Atlas:** create an M0 cluster and a database user, and allow your IP address. Copy the connection string into `MONGODB_URI`, replacing both `<db_username>` and `<db_password>`. Then run `npm run db:indexes` once to create the vector and keyword search indexes (a free cluster allows three in total).
 2. **Gemini API:** create a key at [Google AI Studio](https://aistudio.google.com/apikey) and set `GOOGLE_GENERATIVE_AI_API_KEY`.
 3. **Google OAuth:** create an OAuth client (Web application) in Google Cloud Console with the redirect URI `http://localhost:3000/api/auth/callback/google`, then set `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`. Generate `AUTH_SECRET` with `npx auth secret`.
 
