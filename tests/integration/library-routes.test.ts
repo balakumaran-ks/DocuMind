@@ -270,7 +270,7 @@ describe("GET /api/chats?documentId=", () => {
 });
 
 describe("GET /api/chats/:id/messages", () => {
-  it("returns the chat and its messages in order, with citations as plain ids", async () => {
+  it("returns the chat and its messages in order, with citations as plain ids and no ratings yet", async () => {
     const documentId = await seedDocument();
     const chatId = await seedChat(documentId);
     const chunk = await db.collection("chunks").findOne({ documentId, pageNumber: 1 });
@@ -282,16 +282,40 @@ describe("GET /api/chats/:id/messages", () => {
     expect(body).toEqual({
       chat: { id, documentId: documentId.toHexString(), title: "When do applications open?" },
       messages: [
-        { id: expect.any(String), role: "user", content: "When do applications open?", citations: [], createdAt: expect.any(String) },
+        {
+          id: expect.any(String),
+          role: "user",
+          content: "When do applications open?",
+          citations: [],
+          rating: null,
+          createdAt: expect.any(String),
+        },
         {
           id: expect.any(String),
           role: "assistant",
           content: "In March [p. 1].",
           citations: [{ pageNumber: 1, chunkId: chunk?._id.toHexString() }],
+          rating: null,
           createdAt: expect.any(String),
         },
       ],
     });
+  });
+
+  it("includes an answer's rating", async () => {
+    const chatId = await seedChat(await seedDocument());
+    await db.collection("messages").updateOne(
+      { chatId, role: "assistant" },
+      { $set: { feedback: { rating: "down", updatedAt: new Date() } } },
+    );
+    const id = chatId.toHexString();
+
+    const { body } = await read(await getMessages(get(`/api/chats/${id}/messages`), params({ id })));
+
+    expect(body.messages.map((m: { role: string; rating: unknown }) => [m.role, m.rating])).toEqual([
+      ["user", null],
+      ["assistant", "down"],
+    ]);
   });
 
   it("404 for another user's chat", async () => {

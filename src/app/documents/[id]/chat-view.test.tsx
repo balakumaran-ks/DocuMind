@@ -93,6 +93,21 @@ describe("ChatView — history and empty state", () => {
     expect(screen.getByRole("button", { name: "Open page 2" })).toBeTruthy();
     expect(screen.queryByText(/ask anything about/i)).toBeNull();
   });
+
+  it("offers a rating on each saved answer, not on questions, showing any saved rating", () => {
+    setup(
+      [
+        { id: "m1", role: "user", content: "When are fees due?", citations: [], rating: null },
+        { id: "m2", role: "assistant", content: "Monthly [p. 2].", citations: [{ pageNumber: 2, chunkId: "c2" }], rating: "down" },
+        { id: "m3", role: "user", content: "And late fees?", citations: [], rating: null },
+        { id: "m4", role: "assistant", content: REFUSAL, citations: [], rating: null },
+      ],
+      CHAT_ID,
+    );
+    const bad = screen.getAllByRole("button", { name: "Bad answer" });
+    expect(bad.map((button) => button.getAttribute("aria-pressed"))).toEqual(["true", "false"]);
+    expect(screen.getAllByRole("button", { name: "Good answer" })).toHaveLength(2);
+  });
 });
 
 describe("ChatView — asking", () => {
@@ -118,6 +133,23 @@ describe("ChatView — asking", () => {
 
     expect(await screen.findByRole("button", { name: "Open page 2" })).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledWith(`/api/chats/${CHAT_ID}/messages`);
+  });
+
+  it("offers a rating only once the answer is saved, not while it streams", async () => {
+    const stream = controlledStream();
+    routeFetch(() => stream.response, () => savedMessages("When are fees due?", "Monthly [p. 2].", [2]));
+    const { user, box } = setup();
+    await user.type(box(), "When are fees due?{Enter}");
+
+    stream.push("Monthly ");
+    await screen.findByText(/^Monthly/);
+    expect(screen.queryByRole("button", { name: "Good answer" })).toBeNull();
+
+    stream.push("[p. 2].");
+    stream.end();
+
+    expect(await screen.findByRole("button", { name: "Good answer" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Bad answer" }).getAttribute("aria-pressed")).toBe("false");
   });
 
   it("continues the same chat: follow-ups send the chat id from the first answer", async () => {
@@ -280,5 +312,7 @@ describe("ChatView — errors", () => {
     expect(await screen.findByText("Monthly [p. 2].")).toBeTruthy();
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith(`/api/chats/${CHAT_ID}/messages`));
     expect(screen.queryByRole("button", { name: /open page/i })).toBeNull();
+    // Not saved as far as the browser knows, so there's nothing to rate yet.
+    expect(screen.queryByRole("button", { name: "Good answer" })).toBeNull();
   });
 });
