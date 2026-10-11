@@ -2,17 +2,13 @@
 
 import { useRef, useState } from "react";
 import { askQuestion } from "@/lib/chat/ask";
+import type { ChatMessage } from "@/lib/chat/message";
 import { LIMITS } from "@/lib/limits";
 import { Answer } from "./answer";
+import { FeedbackButtons } from "./feedback-buttons";
 import { PagePanel } from "./page-panel";
 
-/** A message as the API returns it (`GET /api/chats/:id/messages`). */
-export type ChatMessage = {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-  citations: { pageNumber: number; chunkId: string }[];
-};
+export type { ChatMessage };
 /** `pending`: streaming, or not yet replaced by the saved, validated version. */
 type ShownMessage = ChatMessage & { pending?: boolean };
 
@@ -112,12 +108,18 @@ export function ChatView({ document, initialChatId, initialMessages }: Props) {
                 ) : message.content === "" ? (
                   <p className="animate-pulse text-sm text-zinc-500">Searching the document…</p>
                 ) : (
-                  <Answer
-                    content={message.content}
-                    citations={message.citations}
-                    streaming={message.pending === true}
-                    onOpenPage={setOpenPage}
-                  />
+                  <>
+                    <Answer
+                      content={message.content}
+                      citations={message.citations}
+                      streaming={message.pending === true}
+                      onOpenPage={setOpenPage}
+                    />
+                    {/* Only saved answers have an id the server knows. */}
+                    {message.pending !== true && (
+                      <FeedbackButtons messageId={message.id} initialRating={message.rating ?? null} />
+                    )}
+                  </>
                 )}
               </li>
             ))}

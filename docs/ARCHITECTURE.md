@@ -52,7 +52,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
 | `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding?: number[768]` (missing until its batch is embedded), `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index**, **keyword index** |
 | `chats` | `_id`, `userId`, `documentId`, `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
-| `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `feedback?` (V1), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
+| `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `model?`, `feedback?: { rating: "up" | "down", updatedAt }` (answers only), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
 
 `userId` is copied onto `pages`, `chunks` and `messages` on purpose: every query can filter by it directly, without a join, which makes the rule "every query filters by owner" cheap to enforce and easy to review.
 
@@ -100,7 +100,7 @@ Only chunk text is searchable, with English stemming ("backups" matches "backup"
 | `POST` | `/api/ask` | Ask a question; streams the answer | MVP |
 | `GET` | `/api/chats?documentId=` | Chats for a document | MVP |
 | `GET` | `/api/chats/:id/messages` | Chat history | MVP |
-| `POST` | `/api/messages/:id/feedback` | Thumbs up/down | V1 |
+| `POST` | `/api/messages/:id/feedback` | Rate one of your answers `up` or `down`, or clear the rating with `null` | V1 |
 
 ## Security
 

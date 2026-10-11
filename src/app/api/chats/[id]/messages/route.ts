@@ -1,5 +1,6 @@
 import { errorResponse, unauthorized, withDatabaseErrors } from "@/lib/api/responses";
 import { getUserId } from "@/lib/auth/user";
+import { toChatMessage } from "@/lib/chat/message";
 import { getChat, listMessages } from "@/lib/db/chats";
 import { getDb } from "@/lib/db/client";
 
@@ -17,16 +18,7 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/chats/[id]/
     const rows = await listMessages(db, userId, chat._id);
     return Response.json({
       chat: { id: chat._id.toHexString(), documentId: chat.documentId.toHexString(), title: chat.title },
-      messages: rows.map((message) => ({
-        id: message._id.toHexString(),
-        role: message.role,
-        content: message.content,
-        citations: (message.citations ?? []).map((citation) => ({
-          pageNumber: citation.pageNumber,
-          chunkId: citation.chunkId.toHexString(),
-        })),
-        createdAt: message.createdAt.toISOString(),
-      })),
+      messages: rows.map((message) => ({ ...toChatMessage(message), createdAt: message.createdAt.toISOString() })),
     });
   });
 }

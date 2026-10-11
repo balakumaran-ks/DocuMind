@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getUserId } from "@/lib/auth/user";
+import { toChatMessage, type ChatMessage } from "@/lib/chat/message";
 import { listChats, listMessages } from "@/lib/db/chats";
 import { getDb } from "@/lib/db/client";
 import { getDocument } from "@/lib/db/documents";
-import { ChatView, type ChatMessage } from "./chat-view";
+import { ChatView } from "./chat-view";
 
 /** Chat with one document. Reopening it shows its most recent chat. */
 export default async function DocumentPage(props: PageProps<"/documents/[id]">) {
@@ -37,14 +38,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
   }
 
   const [latest] = await listChats(db, userId, document._id);
-  const messages: ChatMessage[] = latest
-    ? (await listMessages(db, userId, latest._id)).map((message) => ({
-        id: message._id.toHexString(),
-        role: message.role,
-        content: message.content,
-        citations: (message.citations ?? []).map((c) => ({ pageNumber: c.pageNumber, chunkId: c.chunkId.toHexString() })),
-      }))
-    : [];
+  const messages: ChatMessage[] = latest ? (await listMessages(db, userId, latest._id)).map(toChatMessage) : [];
 
   return (
     <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-6 py-8">
