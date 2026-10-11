@@ -24,7 +24,7 @@
 {"question":"When is a person considered to reach age 65?","documentFile":"irs-p501.pdf","expectedPages":[3,23,26],"answerable":true,"evidence":"reach age 65 on the day before"}
 {"question":"What are the requirements to file as head of household?","documentFile":"irs-p501.pdf","expectedPages":[8,9,10],"answerable":true,"evidence":"paid more than half the cost of keeping up a home for the year"}
 {"question":"Under the age test, how old can a qualifying child who is a student be?","documentFile":"irs-p501.pdf","expectedPages":[12,13],"answerable":true,"evidence":"under age 24 at the end of the year"}
-{"question":"Under a multiple support agreement, what share of a person's support must you provide to claim them?","documentFile":"irs-p501.pdf","expectedPages":[21],"answerable":true,"evidence":"provides more than 10% of the person\'s support"}
+{"question":"Under a multiple support agreement, what share of a person's support must you provide to claim them?","documentFile":"irs-p501.pdf","expectedPages":[21],"answerable":true,"evidence":"provides more than 10% of the person's support"}
 {"question":"If your filing status is married filing separately, how much gross income requires you to file a return?","documentFile":"irs-p501.pdf","expectedPages":[2],"answerable":true,"evidence":"married filing separately any age $5"}
 {"question":"How much is the child tax credit per child?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}
 {"question":"How do I renew a U.S. passport?","documentFile":"irs-p501.pdf","expectedPages":[],"answerable":false}
