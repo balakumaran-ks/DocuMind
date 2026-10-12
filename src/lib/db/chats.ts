@@ -1,4 +1,5 @@
 import { ObjectId, type Db } from "mongodb";
+import type { Rating } from "@/lib/chat/message";
 import type { Citation } from "@/lib/rag/citations";
 import type { ChatTurn } from "@/lib/rag/prompt";
 
@@ -26,6 +27,8 @@ export type StoredMessage = {
   retrievedChunkIds?: ObjectId[];
   latencyMs?: number;
   usage?: { inputTokens: number | null; outputTokens: number | null };
+  /** The user's rating of an answer, if any. */
+  feedback?: { rating: Rating; updatedAt: Date };
 };
 
 const chats = (db: Db) => db.collection<StoredChat>("chats");
@@ -102,4 +105,17 @@ export async function saveMessage(db: Db, message: Omit<StoredMessage, "_id" | "
   const createdAt = new Date();
   await messages(db).insertOne({ _id: new ObjectId(), ...message, createdAt });
   await chats(db).updateOne({ _id: message.chatId, userId: message.userId }, { $set: { updatedAt: createdAt } });
+}
+
+/**
+ * Rates one of the user's answers, or clears the rating when `rating` is null.
+ * False if there is no such answer: a malformed id, another user's message, or a question.
+ */
+export async function setFeedback(db: Db, userId: string, messageId: string, rating: Rating | null): Promise<boolean> {
+  if (!/^[0-9a-f]{24}$/i.test(messageId)) return false;
+  const result = await messages(db).updateOne(
+    { _id: new ObjectId(messageId), userId, role: "assistant" },
+    rating === null ? { $unset: { feedback: "" } } : { $set: { feedback: { rating, updatedAt: new Date() } } },
+  );
+  return result.matchedCount === 1;
 }
