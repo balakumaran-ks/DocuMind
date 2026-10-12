@@ -64,7 +64,7 @@ beforeEach(async () => {
   stubServerEnv(mongo.getUri(), DB_NAME);
   session.userId = USER_ID;
   fake.current = fakeEmbedder();
-  await Promise.all(["documents", "pages", "chunks"].map((name) => db.collection(name).deleteMany({})));
+  await Promise.all(["documents", "pages", "chunks", "uploadCounts"].map((name) => db.collection(name).deleteMany({})));
 });
 
 afterEach(async () => {
@@ -211,5 +211,49 @@ describe("POST /api/documents — rejections write nothing", () => {
     const { body } = await upload({ name: "fake.pdf", bytes: fixture("not-a-pdf.pdf") });
     expect(body.error.message).toEqual(expect.any(String));
     expect(body.error.message.length).toBeGreaterThan(0);
+  });
+});
+
+describe("POST /api/documents — hardening", () => {
+  /** Uploads the 3-page fixture and removes it again, the way a delete would, so the document cap never interferes. */
+  async function uploadAndDelete(name = "handbook.pdf") {
+    const result = await upload({ name, bytes: fixture("text-3-pages.pdf") });
+    await Promise.all(["documents", "pages", "chunks"].map((c) => db.collection(c).deleteMany({ userId: USER_ID })));
+    return result;
+  }
+
+  it("stores a cleaned file name: no control or direction-override characters", async () => {
+    const { body } = await upload({ name: "inv‮oice\u0007.pdf", bytes: fixture("text-3-pages.pdf") });
+    const document = await db.collection("documents").findOne({ _id: new ObjectId(String(body.documentId)) });
+    expect(document?.filename).toBe("invoice.pdf");
+  });
+
+  it(`429 after ${LIMITS.maxUploadsPerDay} uploads today, before anything is stored or embedded, even if they were deleted`, async () => {
+    for (let i = 0; i < LIMITS.maxUploadsPerDay; i++) expect((await uploadAndDelete()).status).toBe(201);
+    const embeddedBefore = fake.current?.embeddedTexts().length;
+
+    const { status, body } = await upload({ name: "one-more.pdf", bytes: fixture("text-3-pages.pdf") });
+
+    expect(status).toBe(429);
+    expect(body.error.code).toBe("daily_upload_limit_reached");
+    expect(body.error.message).toMatch(new RegExp(`${LIMITS.maxUploadsPerDay} uploads`));
+    const midnight = new Date();
+    midnight.setUTCHours(24, 0, 0, 0);
+    expect(body.error.resetsAt).toBe(midnight.toISOString());
+    expect(await storedCounts()).toEqual({ documents: 0, pages: 0, chunks: 0 });
+    expect(fake.current?.embeddedTexts().length).toBe(embeddedBefore);
+  });
+
+  it("doesn't count rejected uploads toward the daily cap", async () => {
+    for (let i = 0; i < LIMITS.maxUploadsPerDay; i++) {
+      expect((await upload({ name: "fake.pdf", bytes: fixture("not-a-pdf.pdf") })).status).toBe(415);
+    }
+    expect((await upload({ name: "real.pdf", bytes: fixture("text-3-pages.pdf") })).status).toBe(201);
+  });
+
+  it("counts each user's uploads separately", async () => {
+    for (let i = 0; i < LIMITS.maxUploadsPerDay; i++) await uploadAndDelete();
+    session.userId = "google:someone-else";
+    expect((await upload({ name: "theirs.pdf", bytes: fixture("text-3-pages.pdf") })).status).toBe(201);
   });
 });
