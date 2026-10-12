@@ -21,7 +21,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 ![Ingest pipeline](assets/ingest-pipeline.png)
 
 1. `POST /api/documents` receives `multipart/form-data`.
-2. **Validate on the server:** session present, under 5 documents, size ≤ 4 MB ([ADR-0006](adr/0006-four-mb-upload-cap.md)), magic bytes `%PDF-`, page count ≤ 50.
+2. **Validate on the server:** session present, under 5 documents, size ≤ 4 MB ([ADR-0006](adr/0006-four-mb-upload-cap.md)), magic bytes `%PDF-`, page count ≤ 50, and under 10 uploads today (counted once these pass; deleting doesn't give an upload back). The file name is cleaned of control and text-direction characters.
 3. **Extract** text per page with `unpdf`, PDF.js packaged for serverless ([ADR-0007](adr/0007-unpdf-for-text-extraction.md)). Pages with no text are flagged (likely scanned).
 4. **Chunk** each page separately with overlap, so every chunk belongs to exactly one page ([ADR-0004](adr/0004-page-bounded-chunking.md)).
 5. **Hash** each chunk (SHA-256 of normalised text + embedding model). Chunks whose hash this user already has reuse the stored vector.
@@ -109,6 +109,8 @@ Only chunk text is searchable, with English stemming ("backups" matches "backup"
 - Document text is treated as data: wrapped in `<source>` tags and the system prompt says to ignore instructions inside it.
 - Citations are validated against the retrieved chunks, so the model cannot cite a page it never saw.
 - Secrets only in environment variables; `.env*` is git-ignored except `.env.example`, and configuration errors report variable names, never values.
+- Security headers on every response forbid framing (clickjacking) and content sniffing; uploaded file names are cleaned; each user may upload 10 documents a day, deleted ones included.
+- The full threat model, with the accepted risks, is in [SECURITY.md](SECURITY.md).
 
 ## Deployment
 

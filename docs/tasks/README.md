@@ -16,3 +16,4 @@ The MVP is built in small slices. Each task file states the goal, the acceptance
 | [009](009-answer-feedback.md) | Thumbs up/down on answers | V1 | ✅ Done |
 | [010](010-ask-across-documents.md) | Ask across several documents, with lettered citations | V1 | ✅ Done |
 | [011](011-hardening.md) | Prompt-injection checks in the eval, usage report | Hardening | ✅ Done |
+| [012](012-security-pass.md) | Security pass: headers, clean file names, daily upload cap, threat model | Hardening | ✅ Done |

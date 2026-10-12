@@ -77,7 +77,7 @@ describe("DocumentLibrary — list", () => {
 
   it("warns that document text goes to Google's free Gemini tier, so nothing confidential should be uploaded", () => {
     setup([]);
-    expect(screen.getByText(/sent to google's gemini api/i).textContent).toMatch(/confidential/i);
+    expect(screen.getByText(/sent to google['’]s gemini api/i).textContent).toMatch(/confidential/i);
   });
 
   it("offers asking across documents once two are ready", () => {

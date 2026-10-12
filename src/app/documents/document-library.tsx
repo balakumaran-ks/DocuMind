@@ -197,6 +197,11 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
         </label>
       </div>
 
+      <p className="text-xs text-zinc-500">
+        Document text is sent to Google&rsquo;s Gemini API, whose free tier may use it to improve Google&rsquo;s products.
+        Don&rsquo;t upload anything confidential or personal.
+      </p>
+
       {atCap && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">
           You have {LIMITS.maxDocumentsPerUser} documents, the limit. Delete one to upload another.

@@ -29,7 +29,7 @@ A signed-in individual working with their own text PDFs: course notes, papers, m
 | 6 | Sign in with Google | Nothing is accessible when signed out, and users never see each other's data. |
 | 7 | Chat history per document | Reopening a document shows its earlier questions and answers. |
 
-**Limits** (enforced in `src/lib/limits.ts`): 5 documents per user, 50 questions per user per day.
+**Limits** (enforced in `src/lib/limits.ts`): 5 documents per user, 10 uploads per user per day, 50 questions per user per day.
 
 ## After the MVP
 
