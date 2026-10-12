@@ -47,6 +47,9 @@ export default async function Home() {
             </button>
           </form>
         )}
+        <p className="text-sm text-zinc-500">
+          No PDF to hand? Add a sample document, such as the NIST Cybersecurity Framework, in one click.
+        </p>
       </div>
       <ol className="grid gap-4 sm:grid-cols-3">
         {steps.map((step, i) => (

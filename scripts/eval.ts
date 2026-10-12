@@ -35,7 +35,7 @@ import { EmbeddingRateLimitError, getEmbedder, type Embedder } from "@/lib/ai/em
 import { describeWait, isDailyQuota, quotaRetrySeconds } from "@/lib/ai/quota";
 import { ensureChunkIndexes } from "@/lib/db/chunks";
 import { ensureIndexes, insertDocumentWithPages } from "@/lib/db/documents";
-import { ensureTextIndex, ensureVectorIndex, TEXT_INDEX_NAME, waitUntilQueryable } from "@/lib/db/search-index";
+import { ensureTextIndex, ensureVectorIndex, waitUntilQueryable } from "@/lib/db/search-index";
 import { readServerEnv } from "@/lib/env";
 import { compareRuns, containsEvidence, parseQuestions, scoreCase, summarize, type EvalCase } from "@/lib/eval/metrics";
 import { ingestDocument } from "@/lib/ingest";
@@ -43,7 +43,8 @@ import { LIMITS } from "@/lib/limits";
 import { countPages, extractPages } from "@/lib/pdf/extract";
 import { parseCitations } from "@/lib/rag/citations";
 import { buildPrompt } from "@/lib/rag/prompt";
-import { retrieveChunks, vectorSearchStage } from "@/lib/rag/retrieve";
+import { retrieveChunks } from "@/lib/rag/retrieve";
+import { waitUntilSearchable } from "@/lib/rag/searchable";
 
 const EVAL_USER = "eval";
 const root = new URL("../evals/", import.meta.url);
@@ -366,42 +367,11 @@ async function ingest(db: Db, files: string[]): Promise<Map<string, ObjectId>> {
       );
       await db.collection("documents").deleteOne({ _id: document._id, userId: EVAL_USER });
     }
-    await waitUntilSearchable(db, documentId, chunkCount);
+    // Atlas indexes new chunks asynchronously; measure only once both searches see all of them.
+    if (!(await waitUntilSearchable(db, EVAL_USER, documentId, chunkCount, 120))) {
+      throw new Error("Chunks are still not searchable after 2 minutes.");
+    }
     ids.set(file, documentId);
   }
   return ids;
-}
-
-/**
- * Atlas indexes new chunks asynchronously; wait until the vector search returns
- * as many chunks as it should and the keyword index holds all of them.
- */
-async function waitUntilSearchable(db: Db, documentId: ObjectId, chunkCount: number) {
-  const probe = await db.collection("chunks").findOne({ userId: EVAL_USER, documentId });
-  if (!probe) return;
-  const search = { userId: EVAL_USER, documentIds: [documentId], queryVector: probe.embedding, queryText: String(probe.text) };
-  const wanted = Math.min(LIMITS.fusionCandidates, chunkCount);
-  const keywordCount = [
-    {
-      $searchMeta: {
-        index: TEXT_INDEX_NAME,
-        compound: {
-          filter: [
-            { equals: { path: "userId", value: EVAL_USER } },
-            { equals: { path: "documentId", value: documentId } },
-          ],
-        },
-        count: { type: "total" },
-      },
-    },
-  ];
-  for (let attempt = 0; attempt < 40; attempt++) {
-    const [vector, [meta]] = await Promise.all([
-      db.collection("chunks").aggregate([vectorSearchStage(search)]).toArray(),
-      db.collection("chunks").aggregate<{ count?: { total?: number } }>(keywordCount).toArray(),
-    ]);
-    if (vector.length >= wanted && meta?.count?.total === chunkCount) return;
-    await new Promise((resolve) => setTimeout(resolve, 3_000));
-  }
-  throw new Error("Chunks are still not searchable after 2 minutes.");
 }

@@ -94,7 +94,7 @@ Only chunk text is searchable, with English stemming ("backups" matches "backup"
 | `GET` | `/api/health` | Liveness, plus env vars that are missing or still hold a template placeholder (names only) | Setup ✅ |
 | `*` | `/api/auth/[...nextauth]` | Auth.js handlers | MVP |
 | `POST` | `/api/documents` | Upload a PDF and index it (`201` ready, or `202` processing with progress) | MVP |
-| `POST` | `/api/documents/samples` | Add a sample document: a copy of a pre-indexed template, ready at once with no embedding calls | V1 |
+| `POST` | `/api/documents/samples` | Add a sample document: a copy of a pre-indexed template with no embedding calls, returned once search can see it (a few seconds) | V1 |
 | `POST` | `/api/documents/:id/ingest` | Index the next batch of a processing document; `429` with the wait at the quota | MVP |
 | `GET` | `/api/documents` | List the user's documents | MVP |
 | `GET` | `/api/documents/:id` | Document metadata and status | MVP |
