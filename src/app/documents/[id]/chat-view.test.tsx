@@ -1,5 +1,6 @@
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { LIMITS } from "@/lib/limits";
 import { REFUSAL } from "@/lib/rag/prompt";
@@ -57,7 +58,7 @@ afterEach(() => {
 });
 
 function setup(initialMessages: ChatMessage[] = [], initialChatId: string | null = null) {
-  render(<ChatView document={DOC} initialChatId={initialChatId} initialMessages={initialMessages} />);
+  render(<ChatView documents={[DOC]} initialChatId={initialChatId} initialMessages={initialMessages} />);
   const user = userEvent.setup();
   const box = () => screen.getByRole("textbox", { name: /your question/i }) as HTMLTextAreaElement;
   const askButton = () => screen.getByRole("button", { name: /^ask$/i }) as HTMLButtonElement;
@@ -221,6 +222,94 @@ describe("ChatView — asking", () => {
 
     await user.type(box(), "Fresh start?{Enter}");
     await waitFor(() => expect(askBodies()).toEqual([{ documentId: DOC.id, question: "Fresh start?" }]));
+  });
+});
+
+describe("ChatView — across documents", () => {
+  const POLICY = { id: "6ac7025ed3d5f6ed7fd8be94", filename: "policy.pdf", pageCount: 8 };
+
+  function setupAcross(
+    props: { initialMessages?: ChatMessage[]; picker?: ReactNode; disabled?: boolean } = {},
+  ) {
+    render(
+      <ChatView
+        documents={[DOC, POLICY]}
+        initialChatId={props.initialMessages ? CHAT_ID : null}
+        initialMessages={props.initialMessages ?? []}
+        picker={props.picker}
+        disabled={props.disabled}
+      />,
+    );
+    return { user: userEvent.setup(), box: () => screen.getByRole("textbox", { name: /your question/i }) };
+  }
+
+  it("asks across all its documents, sending their ids", async () => {
+    routeFetch(
+      () => {
+        const stream = controlledStream();
+        stream.push("Monthly [A p. 2].");
+        stream.end();
+        return stream.response;
+      },
+      () => savedMessages("When are fees due?", "Monthly [A p. 2].", []),
+    );
+    const { user, box } = setupAcross();
+    expect(screen.getByText(/ask anything across these 2 documents/i)).toBeTruthy();
+
+    await user.type(box(), "When are fees due?{Enter}");
+
+    await waitFor(() => expect(askBodies()).toEqual([{ documentIds: [DOC.id, POLICY.id], question: "When are fees due?" }]));
+  });
+
+  it("lists the chat's documents by letter, and opens the cited document's page", async () => {
+    fetchMock.mockImplementation(async () => json(200, { pageNumber: 4, pageCount: 8, text: "Refunds take 30 days.", isEmpty: false }));
+    const { user } = setupAcross({
+      initialMessages: [
+        { id: "m1", role: "user", content: "Refunds?", citations: [], rating: null },
+        {
+          id: "m2",
+          role: "assistant",
+          content: "Within 30 days [B p. 4].",
+          citations: [{ pageNumber: 4, chunkId: "c4", documentId: POLICY.id }],
+          rating: null,
+        },
+      ],
+    });
+
+    expect(screen.getByText("handbook.pdf")).toBeTruthy();
+    expect(screen.getByText("policy.pdf")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Open page 4 of policy.pdf" }));
+
+    expect(await screen.findByText("Refunds take 30 days.")).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledWith(`/api/documents/${POLICY.id}/pages/4`);
+  });
+
+  it("shows the picker only before the first question, and again for a new chat", async () => {
+    routeFetch(
+      () => {
+        const stream = controlledStream();
+        stream.push("Monthly [A p. 2].");
+        stream.end();
+        return stream.response;
+      },
+      () => savedMessages("When are fees due?", "Monthly [A p. 2].", []),
+    );
+    const { user, box } = setupAcross({ picker: <p>Pick documents here</p> });
+    expect(screen.getByText("Pick documents here")).toBeTruthy();
+
+    await user.type(box(), "When are fees due?{Enter}");
+    await waitFor(() => expect(screen.queryByText("Pick documents here")).toBeNull());
+
+    await user.click(await screen.findByRole("button", { name: /new chat/i }));
+    expect(screen.getByText("Pick documents here")).toBeTruthy();
+  });
+
+  it("can't ask while disabled", async () => {
+    const { user, box } = setupAcross({ disabled: true });
+    await user.type(box(), "When are fees due?");
+    expect((screen.getByRole("button", { name: /^ask$/i }) as HTMLButtonElement).disabled).toBe(true);
+    await user.keyboard("{Enter}");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
 

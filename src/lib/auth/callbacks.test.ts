@@ -50,11 +50,14 @@ describe("sessionCallback", () => {
 });
 
 describe("isProtectedPath", () => {
-  it.each(["/documents", "/documents/", "/documents/6ac68534ae92936b3b5a0515"])("protects %s", (path) => {
+  it.each(["/documents", "/documents/", "/documents/6ac68534ae92936b3b5a0515", "/ask"])("protects %s", (path) => {
     expect(isProtectedPath(path)).toBe(true);
   });
 
-  it.each(["/", "/api/auth/signin", "/api/documents", "/documentsx", "/favicon.ico"])("leaves %s public", (path) => {
-    expect(isProtectedPath(path)).toBe(false);
-  });
+  it.each(["/", "/api/auth/signin", "/api/documents", "/documentsx", "/favicon.ico", "/askx", "/api/ask"])(
+    "leaves %s public",
+    (path) => {
+      expect(isProtectedPath(path)).toBe(false);
+    },
+  );
 });
