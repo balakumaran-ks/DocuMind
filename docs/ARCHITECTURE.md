@@ -14,7 +14,7 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 | **Auth.js** | Google OAuth, JWT session cookie. Every route resolves `userId` from the session: `google:<Google account id>`, set at sign-in, because Auth.js assigns a random id per sign-in when there is no user database. `src/proxy.ts` redirects signed-out visitors from `/documents/*`; pages and routes still check the session themselves. |
 | **MongoDB Atlas** | Collections below, plus an Atlas Vector Search index on `chunks.embedding` and an Atlas Search (keyword) index on `chunks.text`. |
 | **Gemini API** (via Vercel AI SDK) | `gemini-embedding-2` for 768-dim embeddings; `gemma-4-26b-a4b-it` for answers, with `gemini-3.5-flash` as backup. All configurable. |
-| **V1: BullMQ + Upstash Redis + worker** | Moves ingestion out of the upload request; adds retries and progress. |
+| **No queue or worker** | Considered for V1 and not built: indexing large documents stays batched and driven by the document list ([ADR-0011](adr/0011-no-background-worker.md)). |
 
 ## Ingest path
 
@@ -114,7 +114,7 @@ Only chunk text is searchable, with English stemming ("backups" matches "backup"
 
 ![Deployment and CI](assets/deployment.png)
 
-Vercel (Hobby) runs the app; MongoDB Atlas M0 and the Gemini free tier back it. GitHub Actions blocks merges unless lint, typecheck, tests and build pass. In V1, Upstash Redis and a small worker container are added for ingestion.
+Vercel (Hobby) runs the app; MongoDB Atlas M0 and the Gemini free tier back it. GitHub Actions blocks merges unless lint, typecheck, tests and build pass. There is no queue or worker to deploy ([ADR-0011](adr/0011-no-background-worker.md)). `npm run stats` reports usage from a developer machine: questions per day, answer time, answers per model, refusals, ratings and tokens, as aggregates only.
 
 ## Diagrams
 
