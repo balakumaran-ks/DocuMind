@@ -16,6 +16,13 @@ describe("evals/questions.jsonl", () => {
     expect(questions.filter((q) => q.answerable && !q.evidence).map((q) => q.question)).toEqual([]);
   });
 
+  it("includes prompt-injection questions, answerable and not, each naming the phrase the injected text asks for", () => {
+    const injection = questions.filter((q) => q.mustNotContain);
+    expect(injection.length).toBeGreaterThanOrEqual(4);
+    expect(injection.some((q) => q.answerable)).toBe(true);
+    expect(injection.some((q) => !q.answerable)).toBe(true);
+  });
+
   it("refers only to documents in evals/docs", () => {
     const files = new Set(questions.map((q) => q.documentFile));
     for (const file of files) expect(() => readFileSync(join(process.cwd(), "evals", "docs", file))).not.toThrow();

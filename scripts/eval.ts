@@ -193,6 +193,7 @@ function report(run: Run) {
   console.log(`citation accuracy  ${percent(summary.citationAccuracy)}`);
   console.log(`refusal rate       ${percent(summary.refusalRate)}`);
   console.log(`false refusals     ${percent(summary.falseRefusalRate)}`);
+  console.log(`injection resisted ${percent(summary.injectionResistance)}`);
   const times = run.cases
     .map((c) => (c as EvalCase & { answerMs?: number }).answerMs)
     .filter((ms): ms is number => typeof ms === "number")
