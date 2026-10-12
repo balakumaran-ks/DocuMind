@@ -158,6 +158,23 @@ describe("DELETE /api/documents/:id", () => {
     expect(await count("chunks", { documentId: kept })).toBe(2);
   });
 
+  it("also deletes the user's chats across several documents that include it, and their messages", async () => {
+    const doomed = await seedDocument();
+    const other = await seedDocument(USER_ID, "other.pdf");
+    const third = await seedDocument(USER_ID, "third.pdf");
+    const across = await createChat(db, { userId: USER_ID, documentIds: [other, doomed], title: "Across" });
+    await saveMessage(db, { chatId: across._id, userId: USER_ID, role: "user", content: "Across" });
+    await createChat(db, { userId: USER_ID, documentIds: [other, third], title: "Without it" });
+    await createChat(db, { userId: OTHER_USER, documentIds: [doomed, other], title: "Someone else's" });
+
+    const response = await deleteDocument(get(`/api/documents/${doomed}`), params({ id: doomed.toHexString() }));
+
+    expect(response.status).toBe(204);
+    const titles = (await db.collection("chats").find({}).toArray()).map((chat) => chat.title).sort();
+    expect(titles).toEqual(["Someone else's", "Without it"]);
+    expect(await count("messages", { chatId: across._id })).toBe(0);
+  });
+
   it("404 for another user's document, which is left untouched", async () => {
     const theirs = await seedDocument(OTHER_USER);
     await seedChat(theirs, OTHER_USER);
@@ -315,6 +332,28 @@ describe("GET /api/chats/:id/messages", () => {
     expect(body.messages.map((m: { role: string; rating: unknown }) => [m.role, m.rating])).toEqual([
       ["user", null],
       ["assistant", "down"],
+    ]);
+  });
+
+  it("lists the documents of a chat across several documents, and which document each citation is in", async () => {
+    const handbook = await seedDocument();
+    const policy = await seedDocument(USER_ID, "policy.pdf");
+    const chat = await createChat(db, { userId: USER_ID, documentIds: [handbook, policy], title: "Across" });
+    const chunk = await db.collection("chunks").findOne({ documentId: policy, pageNumber: 3 });
+    await saveMessage(db, {
+      chatId: chat._id,
+      userId: USER_ID,
+      role: "assistant",
+      content: "Late fees are 5 percent [B p. 3].",
+      citations: chunk ? [{ documentId: policy, pageNumber: 3, chunkId: chunk._id }] : [],
+    });
+    const id = chat._id.toHexString();
+
+    const { body } = await read(await getMessages(get(`/api/chats/${id}/messages`), params({ id })));
+
+    expect(body.chat).toEqual({ id, documentIds: [handbook.toHexString(), policy.toHexString()], title: "Across" });
+    expect(body.messages[0].citations).toEqual([
+      { documentId: policy.toHexString(), pageNumber: 3, chunkId: chunk?._id.toHexString() },
     ]);
   });
 
