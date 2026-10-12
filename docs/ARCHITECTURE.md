@@ -113,6 +113,7 @@ Only chunk text is searchable, with English stemming ("backups" matches "backup"
 - Citations are validated against the retrieved chunks, so the model cannot cite a page it never saw.
 - Secrets only in environment variables; `.env*` is git-ignored except `.env.example`, and configuration errors report variable names, never values.
 - Security headers on every response forbid framing (clickjacking) and content sniffing; uploaded file names are cleaned; each user may upload 10 documents a day, deleted ones included.
+- "Delete my account" (a server action on the documents page) removes every row of the user and signs them out. `/privacy` and `/terms` are linked from every page.
 - The full threat model, with the accepted risks, is in [SECURITY.md](SECURITY.md).
 
 ## Deployment

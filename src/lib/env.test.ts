@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { ENV_DEFAULTS, EnvError, missingServerEnv, placeholderServerEnv, readServerEnv } from "./env";
+import { ENV_DEFAULTS, EnvError, missingServerEnv, placeholderServerEnv, readServerEnv, siteVerificationToken } from "./env";
+
+describe("siteVerificationToken", () => {
+  it("reads the optional Google Search Console token, and is null when unset or blank", () => {
+    expect(siteVerificationToken({ GOOGLE_SITE_VERIFICATION: " abc123 " })).toBe("abc123");
+    expect(siteVerificationToken({ GOOGLE_SITE_VERIFICATION: "  " })).toBeNull();
+    expect(siteVerificationToken({})).toBeNull();
+  });
+});
 
 const complete = {
   MONGODB_URI: "mongodb+srv://user:pass@cluster.example.mongodb.net",

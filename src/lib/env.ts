@@ -91,6 +91,14 @@ export function readServerEnv(source: Source = process.env): ServerEnv {
   };
 }
 
+/**
+ * Optional: the token Google Search Console gives for verifying the site with
+ * an HTML tag (needed for Google's brand verification of the sign-in screen).
+ */
+export function siteVerificationToken(source: Source = process.env): string | null {
+  return source.GOOGLE_SITE_VERIFICATION?.trim() || null;
+}
+
 /** Names of required variables that are unset, for the health check. Never returns values. */
 export function missingServerEnv(source: Source = process.env): string[] {
   return REQUIRED.filter((key) => !source[key]?.trim());
