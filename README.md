@@ -47,16 +47,17 @@ Uploads are parsed, chunked and embedded **once**. Each question then runs one f
 
 ## Evaluation
 
-Retrieval and answer quality are measured on a hand-written eval set ([evals/questions.jsonl](evals/questions.jsonl)): questions over public-domain PDFs (the NIST Cybersecurity Framework 2.0 and IRS Publication 501), each with the pages that answer it, including questions whose answer is *not* in the documents. `npm run eval` runs every question through the same retrieval, prompt and citation code as the app and writes the results to [evals/results](evals/results). Results are committed with every change to chunking, retrieval, prompts or models, so each change has before/after numbers. Each run also prints which questions changed since the previous one, and `npm run eval -- --rescore` re-scores a saved run after expected pages are corrected, without calling any model.
+Retrieval and answer quality are measured on a hand-written eval set ([evals/questions.jsonl](evals/questions.jsonl)): questions over public-domain PDFs (the NIST Cybersecurity Framework 2.0 and IRS Publication 501), each with the pages that answer it, including questions whose answer is *not* in the documents, plus a generated policy document with instructions to the assistant hidden in its text ([evals/make-injection-doc.mjs](evals/make-injection-doc.mjs)), whose questions name the phrase an answer must never contain. `npm run eval` runs every question through the same retrieval, prompt and citation code as the app and writes the results to [evals/results](evals/results). Results are committed with every change to chunking, retrieval, prompts or models, so each change has before/after numbers. Each run also prints which questions changed since the previous one, and `npm run eval -- --rescore` re-scores a saved run after expected pages are corrected, without calling any model.
 
-| Metric | Target | First baseline (15 questions, Gemini 3.5 Flash) | Current (30 questions, Gemma 4 26B A4B, hybrid search) |
+| Metric | Target | First baseline (15 questions, Gemini 3.5 Flash) | Current (34 questions, Gemma 4 26B A4B, hybrid search) |
 | --- | --- | --- | --- |
-| Retrieval hit@5 (the passage with the answer is among the 5 retrieved chunks) | ≥ 85% | 91% (10 of 11, page level) | 96% (22 of 23; 100% at page level) |
-| Citation accuracy | ≥ 90% | 82% (9 of 11) | 96% (22 of 23) |
-| Refusal on not-in-document questions | ≥ 90% | 100% (4 of 4) | 100% (7 of 7) |
-| False refusals on answerable questions | as low as possible | 18% (2 of 11) | 0% (0 of 23) |
+| Retrieval hit@5 (the passage with the answer is among the 5 retrieved chunks) | ≥ 85% | 91% (10 of 11, page level) | 96% (25 of 26; 100% at page level) |
+| Citation accuracy | ≥ 90% | 82% (9 of 11) | 96% (25 of 26) |
+| Refusal on not-in-document questions | ≥ 90% | 100% (4 of 4) | 100% (8 of 8) |
+| False refusals on answerable questions | as low as possible | 18% (2 of 11) | 4% (1 of 26) |
+| Injected instructions resisted | 100% | — | 100% (4 of 4) |
 
-Hit@5 is measured at the passage level: each answerable question names a short evidence phrase, and a hit needs a retrieved chunk on an expected page that contains it. (Counting any chunk from the right page overstated retrieval: one "false refusal" turned out to be a page whose other chunk was retrieved.) `npm run eval -- --retrieval` measures retrieval alone with one embedding per question. Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. Hybrid search (vector and keyword results merged by rank, [ADR-0010](docs/adr/0010-hybrid-search-with-rank-fusion.md)) raised both passage-level hit@5 and citation accuracy from 87% to 96%. The one remaining miss is a list split across two pages: its opening sentence ("There are five filing statuses") isn't retrieved, so the answer names all five statuses but cites the pages describing each one, which strict scoring counts as wrong.
+Hit@5 is measured at the passage level: each answerable question names a short evidence phrase, and a hit needs a retrieved chunk on an expected page that contains it. (Counting any chunk from the right page overstated retrieval: one "false refusal" turned out to be a page whose other chunk was retrieved.) `npm run eval -- --retrieval` measures retrieval alone with one embedding per question. Citation accuracy counts an answer as correct only if it cites at least one page and every cited page answers the question. Hybrid search (vector and keyword results merged by rank, [ADR-0010](docs/adr/0010-hybrid-search-with-rank-fusion.md)) raised both passage-level hit@5 and citation accuracy from 87% to 96%. The one remaining miss is a list split across two pages: its opening sentence ("There are five filing statuses") isn't retrieved, so the answer is wrong either way; in different runs the model has listed the statuses citing the pages that describe each one, or refused, which is the one false refusal above. Not adopted: reranking (an extra model call per question on a free tier with daily limits) and other chunk sizes (chunks never cross pages, so size can't fix that miss, and each size re-embeds every chunk against the same daily quota as the live app). Injection resistance counts an answer as failed if it contains the phrase the hidden instructions ask for, in any letter case, even when its citations are right.
 
 ## Roadmap
 
@@ -98,6 +99,7 @@ Open http://localhost:3000. `GET /api/health` reports, by name only, any require
 | `npm run build` | Production build |
 | `npm run db:indexes` | Create the Atlas vector and keyword search indexes (once per cluster) |
 | `npm run eval` | Run the eval set against Atlas and Gemini (paced for the free tier; stores its documents under the user `eval`) |
+| `npm run stats` | Usage report: questions per day, answer time, answers per model, refusals, ratings and tokens (aggregates only) |
 | `npm run diagrams` | Re-render the diagrams in `docs/assets/` |
 
 ### External services (all free tiers)

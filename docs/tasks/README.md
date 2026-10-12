@@ -15,3 +15,4 @@ The MVP is built in small slices. Each task file states the goal, the acceptance
 | [008](008-answer-quality.md) | Better answers, measured: larger eval set, passage-level scoring, hybrid search | V1 | ✅ Done |
 | [009](009-answer-feedback.md) | Thumbs up/down on answers | V1 | ✅ Done |
 | [010](010-ask-across-documents.md) | Ask across several documents, with lettered citations | V1 | ✅ Done |
+| [011](011-hardening.md) | Prompt-injection checks in the eval, usage report | Hardening | ✅ Done |
