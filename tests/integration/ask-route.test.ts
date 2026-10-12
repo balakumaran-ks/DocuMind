@@ -8,7 +8,7 @@ import { closeDb } from "@/lib/db/client";
 import { insertDocumentWithPages } from "@/lib/db/documents";
 import { ingestDocument } from "@/lib/ingest";
 import { LIMITS } from "@/lib/limits";
-import { REFUSAL, SYSTEM_PROMPT } from "@/lib/rag/prompt";
+import { REFUSAL, SYSTEM_PROMPT, SYSTEM_PROMPT_ACROSS } from "@/lib/rag/prompt";
 import { retrieveChunks } from "@/lib/rag/retrieve";
 import { fakeAnswerModel } from "./helpers/fake-answer-model";
 import { fakeEmbedder, vectorFor } from "./helpers/fake-embedder";
@@ -45,21 +45,22 @@ vi.mock("@/lib/ai/answer", () => ({
 }));
 
 // mongodb-memory-server has no $rankFusion, $vectorSearch or $search. This stand-in keeps the contract:
-// only the given user's chunks of the given document, at most retrievalTopK, best first.
+// only the given user's chunks of the given documents, at most retrievalTopK, best first.
 vi.mock("@/lib/rag/retrieve", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/rag/retrieve")>();
   const { LIMITS: limits } = await import("@/lib/limits");
   return {
     ...actual,
-    retrieveChunks: vi.fn(async ({ db, userId, documentId }: Parameters<typeof actual.retrieveChunks>[0]) => {
+    retrieveChunks: vi.fn(async ({ db, userId, documentIds }: Parameters<typeof actual.retrieveChunks>[0]) => {
       const rows = await db
         .collection("chunks")
-        .find({ userId, documentId })
-        .sort({ chunkIndex: 1 })
+        .find({ userId, documentId: { $in: documentIds } })
+        .sort({ chunkIndex: 1, _id: 1 })
         .limit(limits.retrievalTopK)
         .toArray();
       return rows.map((row, i) => ({
         _id: row._id,
+        documentId: row.documentId,
         pageNumber: row.pageNumber,
         chunkIndex: row.chunkIndex,
         text: row.text,
@@ -79,9 +80,9 @@ let db: Db;
 const PAGES = ["Applications open in March.", "Fees are due monthly.", "Late fees are 5 percent."];
 
 /** A ready document with one chunk per page, stored the way an upload stores it. */
-async function seedDocument(userId = USER_ID): Promise<ObjectId> {
+async function seedDocument(userId = USER_ID, filename = "fees.pdf"): Promise<ObjectId> {
   const pages = PAGES.map((text, i) => ({ pageNumber: i + 1, text, charCount: text.length, isEmpty: false }));
-  const documentId = await insertDocumentWithPages(db, { userId, filename: "fees.pdf", sizeBytes: 1000, sha256: "x", pages });
+  const documentId = await insertDocumentWithPages(db, { userId, filename, sizeBytes: 1000, sha256: "x", pages });
   await ingestDocument({ db, embedder: fakeEmbedder().embedder, userId, documentId, pages });
   return documentId;
 }
@@ -168,7 +169,7 @@ describe("POST /api/ask — answering", () => {
     expect(retrieveChunks).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: USER_ID,
-        documentId,
+        documentIds: [documentId],
         queryVector: vectorFor("When are fees due?", 4),
         queryText: "When are fees due?",
       }),
@@ -378,6 +379,109 @@ describe("POST /api/ask — backup answer model", () => {
   });
 });
 
+describe("POST /api/ask — across several documents", () => {
+  async function seedTwo() {
+    const handbook = await seedDocument(USER_ID, "handbook.pdf");
+    const policy = await seedDocument(USER_ID, "policy.pdf");
+    return { handbook, policy, ids: [handbook.toHexString(), policy.toHexString()] };
+  }
+
+  it("searches only the chosen documents and tags their sources by letter", async () => {
+    const { handbook, policy, ids } = await seedTwo();
+    await seedDocument(USER_ID, "not-chosen.pdf");
+
+    const { status } = await ask({ documentIds: ids, question: "When are fees due?" });
+
+    expect(status).toBe(200);
+    expect(retrieveChunks).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: USER_ID, documentIds: [handbook, policy], queryText: "When are fees due?" }),
+    );
+    const prompt = fakes.answer?.sentPrompt() ?? [];
+    expect(prompt[0]).toEqual({ role: "system", text: SYSTEM_PROMPT_ACROSS });
+    expect(prompt[1]?.text).toContain('<source document="A" page="1">\nApplications open in March.\n</source>');
+    expect(prompt[1]?.text).toContain('<source document="B" page="1">\nApplications open in March.\n</source>');
+  });
+
+  it("saves a chat over those documents, and citations that name their document", async () => {
+    const { handbook, policy, ids } = await seedTwo();
+    if (fakes.answer) fakes.answer.state.reply = "Monthly [A p. 2]. Applications open in March [B p. 1].";
+
+    const { headers } = await ask({ documentIds: ids, question: "When are fees due?" });
+
+    await vi.waitFor(async () => expect(await messages()).toHaveLength(2));
+    const [chat] = await chats();
+    expect(chat).toMatchObject({
+      _id: new ObjectId(String(headers.get("x-chat-id"))),
+      userId: USER_ID,
+      documentIds: [handbook, policy],
+      title: "When are fees due?",
+    });
+    expect(chat).not.toHaveProperty("documentId");
+    const a2 = await db.collection("chunks").findOne({ documentId: handbook, pageNumber: 2 });
+    const b1 = await db.collection("chunks").findOne({ documentId: policy, pageNumber: 1 });
+    expect((await messages())[1]?.citations).toEqual([
+      { documentId: handbook, pageNumber: 2, chunkId: a2?._id },
+      { documentId: policy, pageNumber: 1, chunkId: b1?._id },
+    ]);
+  });
+
+  it("continues the chat, in any order of ids, keeping the letters it started with", async () => {
+    const { handbook, policy, ids } = await seedTwo();
+    const first = await ask({ documentIds: ids, question: "When are fees due?" });
+    const chatId = String(first.headers.get("x-chat-id"));
+    await vi.waitFor(async () => expect(await messages()).toHaveLength(2));
+
+    const second = await ask({ documentIds: [...ids].reverse(), chatId, question: "And late fees?" });
+
+    expect(second.status).toBe(200);
+    expect(second.headers.get("x-chat-id")).toBe(chatId);
+    expect(vi.mocked(retrieveChunks).mock.calls[1]?.[0].documentIds).toEqual([handbook, policy]);
+    expect(fakes.answer?.sentPrompt(1).map((m) => m.role)).toEqual(["system", "user", "assistant", "user"]);
+    expect(await chats()).toHaveLength(1);
+  });
+
+  it("404 chat_not_found when continuing with other documents, or as a single-document chat", async () => {
+    const { handbook, ids } = await seedTwo();
+    const third = await seedDocument(USER_ID, "third.pdf");
+    const first = await ask({ documentIds: ids, question: "q" });
+    const chatId = String(first.headers.get("x-chat-id"));
+    await vi.waitFor(async () => expect(await messages()).toHaveLength(2));
+
+    for (const body of [
+      { documentIds: [ids[0], third.toHexString()], chatId, question: "q2" },
+      { documentIds: [...ids, third.toHexString()], chatId, question: "q2" },
+      { documentId: handbook.toHexString(), chatId, question: "q2" },
+    ]) {
+      const { status, json } = await ask(body);
+      expect(status).toBe(404);
+      expect(json().error.code).toBe("chat_not_found");
+    }
+    expect(await messages()).toHaveLength(2);
+  });
+
+  it("404 when any of the documents isn't the user's, searching and saving nothing", async () => {
+    const mine = await seedDocument();
+    const theirs = await seedDocument(OTHER_USER);
+
+    const { status, json } = await ask({ documentIds: [mine.toHexString(), theirs.toHexString()], question: "q" });
+
+    expect(status).toBe(404);
+    expect(json().error.code).toBe("document_not_found");
+    expect(retrieveChunks).not.toHaveBeenCalled();
+    expect(await chats()).toHaveLength(0);
+  });
+
+  it("409 when any of the documents isn't ready", async () => {
+    const { policy, ids } = await seedTwo();
+    await db.collection("documents").updateOne({ _id: policy }, { $set: { status: "processing" } });
+
+    const { status, json } = await ask({ documentIds: ids, question: "q" });
+
+    expect(status).toBe(409);
+    expect(json().error.code).toBe("document_not_ready");
+  });
+});
+
 describe("POST /api/ask — rejections", () => {
   it("401 when there is no signed-in user", async () => {
     session.userId = null;
@@ -392,6 +496,20 @@ describe("POST /api/ask — rejections", () => {
     ["the question is blank", { documentId: new ObjectId().toHexString(), question: "   " }, undefined],
     ["the documentId is not an id", { documentId: "abc", question: "q" }, undefined],
     ["the chatId is not an id", { documentId: new ObjectId().toHexString(), chatId: "abc", question: "q" }, undefined],
+    ["neither documentId nor documentIds is sent", { question: "q" }, undefined],
+    [
+      "both documentId and documentIds are sent",
+      { documentId: "6ac68534ae92936b3b5a0515", documentIds: ["6ac68534ae92936b3b5a0515", "6ac7025ed3d5f6ed7fd8be94"], question: "q" },
+      undefined,
+    ],
+    ["documentIds has only one id", { documentIds: [new ObjectId().toHexString()], question: "q" }, undefined],
+    ["documentIds repeats an id", { documentIds: ["6ac68534ae92936b3b5a0515", "6AC68534AE92936B3B5A0515"], question: "q" }, undefined],
+    [
+      `documentIds has more than ${LIMITS.maxDocumentsPerUser} ids`,
+      { documentIds: Array.from({ length: LIMITS.maxDocumentsPerUser + 1 }, () => new ObjectId().toHexString()), question: "q" },
+      undefined,
+    ],
+    ["documentIds holds something that isn't an id", { documentIds: [new ObjectId().toHexString(), "abc"], question: "q" }, undefined],
   ])("400 when %s", async (_, body, raw) => {
     const { status, json } = await ask(body, raw);
     expect(status).toBe(400);

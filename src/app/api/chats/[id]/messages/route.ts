@@ -16,8 +16,11 @@ export async function GET(_request: Request, ctx: RouteContext<"/api/chats/[id]/
     if (!chat) return errorResponse(404, "chat_not_found", "That chat doesn't exist.");
 
     const rows = await listMessages(db, userId, chat._id);
+    const documents = chat.documentIds
+      ? { documentIds: chat.documentIds.map((id) => id.toHexString()) }
+      : { documentId: chat.documentId?.toHexString() };
     return Response.json({
-      chat: { id: chat._id.toHexString(), documentId: chat.documentId.toHexString(), title: chat.title },
+      chat: { id: chat._id.toHexString(), ...documents, title: chat.title },
       messages: rows.map((message) => ({ ...toChatMessage(message), createdAt: message.createdAt.toISOString() })),
     });
   });

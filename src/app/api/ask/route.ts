@@ -6,6 +6,7 @@ import { quotaMessage, quotaRetrySeconds } from "@/lib/ai/quota";
 import { rateLimited } from "@/lib/api/responses";
 import { getUserId } from "@/lib/auth/user";
 import {
+  chatDocumentIds,
   countQuestionsSince,
   createChat,
   findChat,
@@ -40,18 +41,23 @@ function error(status: number, code: ErrorCode, message: string, extra: Record<s
 }
 
 const objectId = z.string().regex(/^[0-9a-f]{24}$/i);
-const AskBody = z.object({
-  documentId: objectId,
-  chatId: objectId.optional(),
-  question: z.string().trim().min(1),
-});
+const AskBody = z
+  .object({
+    documentId: objectId.optional(),
+    documentIds: z.array(objectId).min(2).max(LIMITS.maxDocumentsPerUser).optional(),
+    chatId: objectId.optional(),
+    question: z.string().trim().min(1),
+  })
+  .refine((body) => (body.documentId === undefined) !== (body.documentIds === undefined))
+  .refine((body) => !body.documentIds || new Set(body.documentIds.map((id) => id.toLowerCase())).size === body.documentIds.length);
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Ask a question about one document and stream a cited answer. Every check
- * runs before anything is written; the question is saved before the model
- * runs (so it counts toward the daily cap) and the answer when it finishes.
+ * Ask a question about one document (`documentId`) or across several
+ * (`documentIds`) and stream a cited answer. Every check runs before anything
+ * is written; the question is saved before the model runs (so it counts toward
+ * the daily cap) and the answer when it finishes.
  */
 export async function POST(request: Request) {
   try {
@@ -70,21 +76,34 @@ async function handleAsk(request: Request) {
   if (!userId) return error(401, "unauthorized", "Sign in to ask questions.");
 
   const body = AskBody.safeParse(await request.json().catch(() => undefined));
-  if (!body.success) return error(400, "invalid_request", "Send a documentId and a non-empty question.");
-  const { documentId, chatId, question } = body.data;
+  if (!body.success) {
+    return error(
+      400,
+      "invalid_request",
+      `Send a documentId (or 2 to ${LIMITS.maxDocumentsPerUser} different documentIds) and a non-empty question.`,
+    );
+  }
+  const { documentId, documentIds, chatId, question } = body.data;
   if (question.length > LIMITS.maxQuestionChars) {
     return error(400, "question_too_long", `Questions can be up to ${LIMITS.maxQuestionChars} characters.`);
   }
 
+  const requested = documentIds ?? (documentId ? [documentId] : []);
+  const one = requested.length === 1;
   const db = await getDb();
-  const document = await getDocument(db, userId, documentId);
-  if (!document) return error(404, "document_not_found", "That document doesn't exist.");
-  if (document.status !== "ready") {
-    return error(409, "document_not_ready", "This document isn't ready for questions yet.");
+  const documents = (await Promise.all(requested.map((id) => getDocument(db, userId, id)))).filter((d) => d !== null);
+  if (documents.length !== requested.length) {
+    return error(404, "document_not_found", one ? "That document doesn't exist." : "One of those documents doesn't exist.");
+  }
+  if (documents.some((document) => document.status !== "ready")) {
+    const message = one ? "This document isn't ready for questions yet." : "One of those documents isn't ready for questions yet.";
+    return error(409, "document_not_ready", message);
   }
 
-  const existingChat = chatId ? await findChat(db, userId, document._id, chatId) : null;
+  const existingChat = chatId ? await findChat(db, userId, documents.map((d) => d._id), chatId) : null;
   if (chatId && !existingChat) return error(404, "chat_not_found", "That chat doesn't exist.");
+  // A continued chat keeps the document order, and so the letters, it started with.
+  const searched = existingChat ? chatDocumentIds(existingChat) : documents.map((d) => d._id);
 
   const today = startOfUtcDay(new Date(started));
   if ((await countQuestionsSince(db, userId, today)) >= LIMITS.maxQuestionsPerDay) {
@@ -109,12 +128,12 @@ async function handleAsk(request: Request) {
     throw cause;
   }
 
-  const chunks = await retrieveChunks({ db, userId, documentId: document._id, queryVector, queryText: question });
+  const chunks = await retrieveChunks({ db, userId, documentIds: searched, queryVector, queryText: question });
   const history = existingChat ? await recentMessages(db, userId, existingChat._id, LIMITS.historyMessages) : [];
 
   // Wait for the first piece of the answer, so a used-up quota or a model failure is still a
   // proper error response, and a question that was never answered isn't saved or counted.
-  const answering = await startAnswer(buildPrompt({ question, chunks, history }));
+  const answering = await startAnswer(buildPrompt({ question, chunks, history, documents: searched }));
   if ("error" in answering) {
     const wait = quotaRetrySeconds(answering.error);
     if (wait !== null) return rateLimited(quotaMessage("questions", wait), wait);
@@ -122,7 +141,15 @@ async function handleAsk(request: Request) {
   }
   const { model, result, parts, first } = answering;
 
-  const chat = existingChat ?? (await createChat(db, { userId, documentId: document._id, title: question }));
+  const [single] = searched;
+  const chat =
+    existingChat ??
+    (await createChat(
+      db,
+      searched.length === 1 && single
+        ? { userId, documentId: single, title: question }
+        : { userId, documentIds: searched, title: question },
+    ));
   await saveMessage(db, { chatId: chat._id, userId, role: "user", content: question });
 
   /** Saves the finished answer with what it was built from; a failure here mustn't break the stream. */
@@ -136,7 +163,7 @@ async function handleAsk(request: Request) {
         role: "assistant",
         content: text,
         model,
-        citations: parseCitations(text, chunks),
+        citations: parseCitations(text, chunks, searched),
         retrievedChunkIds: chunks.map((chunk) => chunk._id),
         latencyMs: Date.now() - started,
         usage: { inputTokens: usage.inputTokens ?? null, outputTokens: usage.outputTokens ?? null },

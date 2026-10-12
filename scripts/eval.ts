@@ -86,7 +86,7 @@ async function retrievalOnly(db: Db, documentIds: Map<string, ObjectId>) {
     const documentId = documentIds.get(q.documentFile);
     if (!documentId) throw new Error(`No document for ${q.documentFile}`);
     const queryVector = await embedder.embedQuery(q.question);
-    const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector, queryText: q.question });
+    const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentIds: [documentId], queryVector, queryText: q.question });
     cases.push({
       ...q,
       retrievedPages: chunks.map((chunk) => chunk.pageNumber),
@@ -248,7 +248,7 @@ async function askOne(db: Db, documentId: ObjectId, question: string) {
   for (let attempt = 1; ; attempt++) {
     try {
       const queryVector = await embedder.embedQuery(question);
-      const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentId, queryVector, queryText: question });
+      const chunks = await retrieveChunks({ db, userId: EVAL_USER, documentIds: [documentId], queryVector, queryText: question });
       const prompt = buildPrompt({ question, chunks, history: [] });
       await reserveAnswer();
       const answerStarted = Date.now();
@@ -378,7 +378,7 @@ async function ingest(db: Db, files: string[]): Promise<Map<string, ObjectId>> {
 async function waitUntilSearchable(db: Db, documentId: ObjectId, chunkCount: number) {
   const probe = await db.collection("chunks").findOne({ userId: EVAL_USER, documentId });
   if (!probe) return;
-  const search = { userId: EVAL_USER, documentId, queryVector: probe.embedding, queryText: String(probe.text) };
+  const search = { userId: EVAL_USER, documentIds: [documentId], queryVector: probe.embedding, queryText: String(probe.text) };
   const wanted = Math.min(LIMITS.fusionCandidates, chunkCount);
   const keywordCount = [
     {
