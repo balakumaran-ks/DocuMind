@@ -18,3 +18,4 @@ The MVP is built in small slices. Each task file states the goal, the acceptance
 | [011](011-hardening.md) | Prompt-injection checks in the eval, usage report | Hardening | ✅ Done |
 | [012](012-security-pass.md) | Security pass: headers, clean file names, daily upload cap, threat model | Hardening | ✅ Done |
 | [013](013-sample-documents.md) | One-click sample documents that use no embedding quota | Showcase | ✅ Done |
+| [014](014-public-sign-in.md) | Ready for public sign-in: privacy policy, terms, logo, account deletion | Showcase | ✅ Done |

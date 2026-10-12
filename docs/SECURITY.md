@@ -22,6 +22,7 @@ What DocuMind protects, how, and which risks are accepted. Reviewed in [task 012
 | Malicious files | Type by magic bytes (`%PDF-`), size (4 MB) and page count (50) are checked on the server. PDFs are parsed for text only (PDF.js via unpdf), never rendered or executed. File names are cleaned of control and text-direction characters and shortened. |
 | Quota abuse | Per user: 5 documents, 10 uploads a day (deleted ones count), 50 questions a day, questions up to 1,000 characters. Vectors are reused by content hash. |
 | Secrets in the repository | Secrets live only in `.env.local` and Vercel; `.env*` is ignored except `.env.example`. `/api/health` reports missing variables by name only. |
+| Keeping data longer than wanted | Deleting a document removes its text, chunks and chats; "Delete my account" removes every row of the user, profile included, and signs them out. What is collected and why is published at `/privacy`. |
 | Operator access | `npm run stats` is the only query across users. It prints counts only, and refusals are detected inside the database query, so no question or answer text reaches it. |
 
 ## Accepted risks

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { siteVerificationToken } from "@/lib/env";
 import "./globals.css";
+import { SiteFooter } from "./site-footer";
 import { SiteHeader } from "./site-header";
 
 const geistSans = Geist({
@@ -13,10 +15,14 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "DocuMind",
-  description: "Chat with your PDFs and get answers with page-level citations.",
-};
+export function generateMetadata(): Metadata {
+  const google = siteVerificationToken();
+  return {
+    title: "DocuMind",
+    description: "Chat with your PDFs and get answers with page-level citations.",
+    ...(google ? { verification: { google } } : {}),
+  };
+}
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -27,6 +33,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <SiteHeader />
         {children}
+        <SiteFooter />
       </body>
     </html>
   );
