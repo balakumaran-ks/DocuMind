@@ -91,6 +91,11 @@ export async function listChats(db: Db, userId: string, documentId: ObjectId): P
   return chats(db).find({ userId, documentId }).sort({ updatedAt: -1, _id: -1 }).toArray();
 }
 
+/** The user's most recently active chat across documents, if any. */
+export async function latestChatAcross(db: Db, userId: string): Promise<StoredChat | null> {
+  return chats(db).findOne({ userId, documentIds: { $exists: true } }, { sort: { updatedAt: -1, _id: -1 } });
+}
+
 /** A user's chat by id, or null if it doesn't exist or isn't theirs. */
 export async function getChat(db: Db, userId: string, chatId: string): Promise<StoredChat | null> {
   if (!/^[0-9a-f]{24}$/i.test(chatId)) return null;

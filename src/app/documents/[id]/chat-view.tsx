@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { askQuestion } from "@/lib/chat/ask";
 import type { ChatMessage } from "@/lib/chat/message";
 import { LIMITS } from "@/lib/limits";
+import { documentLabel } from "@/lib/rag/citations";
 import { Answer } from "./answer";
 import { FeedbackButtons } from "./feedback-buttons";
 import { PagePanel } from "./page-panel";
@@ -13,25 +14,33 @@ export type { ChatMessage };
 type ShownMessage = ChatMessage & { pending?: boolean };
 
 type Props = {
-  document: { id: string; filename: string; pageCount: number };
+  /** One document, or several in letter order (A, B, C…) for a chat across documents. */
+  documents: { id: string; filename: string; pageCount: number }[];
   initialChatId: string | null;
   initialMessages: ChatMessage[];
+  /** Shown above an empty chat, such as a choice of documents. */
+  picker?: ReactNode;
+  /** Blocks asking, e.g. while too few documents are chosen. */
+  disabled?: boolean;
 };
 
 const INTERRUPTED = "The answer was interrupted. Please ask again.";
 
-/** Questions and cited answers about one document, with the cited page in a side panel. */
-export function ChatView({ document, initialChatId, initialMessages }: Props) {
+/** Questions and cited answers about one or more documents, with the cited page in a side panel. */
+export function ChatView({ documents, initialChatId, initialMessages, picker, disabled = false }: Props) {
   const [messages, setMessages] = useState<ShownMessage[]>(initialMessages);
   const [chatId, setChatId] = useState(initialChatId);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [openPage, setOpenPage] = useState<number | null>(null);
+  const [openPage, setOpenPage] = useState<{ documentId: string; pageNumber: number } | null>(null);
   const nextLocalId = useRef(0);
 
+  const across = documents.length > 1;
+  const [single] = documents;
+  const subject = across ? `these ${documents.length} documents` : (single?.filename ?? "this document");
   const tooLong = question.length > LIMITS.maxQuestionChars;
-  const canAsk = !asking && question.trim() !== "" && !tooLong;
+  const canAsk = !asking && !disabled && documents.length > 0 && question.trim() !== "" && !tooLong;
 
   async function ask() {
     if (!canAsk) return;
@@ -48,7 +57,7 @@ export function ChatView({ document, initialChatId, initialMessages }: Props) {
     ]);
 
     const outcome = await askQuestion({
-      documentId: document.id,
+      documentIds: documents.map((document) => document.id),
       chatId,
       question: text,
       onText: (piece) =>
@@ -84,18 +93,44 @@ export function ChatView({ document, initialChatId, initialMessages }: Props) {
     setOpenPage(null);
   }
 
+  function openCitedPage(pageNumber: number, documentId?: string) {
+    const id = documentId ?? single?.id;
+    if (id) setOpenPage({ documentId: id, pageNumber });
+  }
+
   return (
     <div className="flex flex-1 flex-col gap-6">
       {messages.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-zinc-300 px-6 py-12 text-center dark:border-zinc-700">
-          <p className="font-medium">Ask anything about {document.filename}</p>
-          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-            Answers come only from this document and cite their pages. Click a citation to read the page.
-          </p>
-        </div>
+        <>
+          {picker}
+          <div className="rounded-2xl border border-dashed border-zinc-300 px-6 py-12 text-center dark:border-zinc-700">
+            <p className="font-medium">
+              {across ? `Ask anything across ${subject}` : `Ask anything about ${subject}`}
+            </p>
+            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+              {across
+                ? "Answers come only from these documents and cite the document and page. Click a citation to read the page."
+                : "Answers come only from this document and cite their pages. Click a citation to read the page."}
+            </p>
+          </div>
+        </>
       ) : (
         <>
-          <div className="flex justify-end">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            {across ? (
+              <ul aria-label="Documents in this chat" className="flex flex-wrap gap-2 text-sm">
+                {documents.map((document, i) => (
+                  <li key={document.id} className="flex items-center gap-1.5 rounded-full border border-zinc-200 px-2.5 py-1 dark:border-zinc-800">
+                    <span data-testid="document-letter" className="font-semibold text-indigo-600 dark:text-indigo-400">
+                      {documentLabel(i)}
+                    </span>
+                    <span>{document.filename}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <span />
+            )}
             <button type="button" onClick={newChat} className="text-sm text-zinc-600 hover:text-indigo-600 dark:text-zinc-400">
               New chat
             </button>
@@ -106,14 +141,15 @@ export function ChatView({ document, initialChatId, initialMessages }: Props) {
                 {message.role === "user" ? (
                   <p className="whitespace-pre-wrap rounded-2xl bg-indigo-600 px-4 py-2.5 text-white">{message.content}</p>
                 ) : message.content === "" ? (
-                  <p className="animate-pulse text-sm text-zinc-500">Searching the document…</p>
+                  <p className="animate-pulse text-sm text-zinc-500">{across ? "Searching the documents…" : "Searching the document…"}</p>
                 ) : (
                   <>
                     <Answer
                       content={message.content}
                       citations={message.citations}
                       streaming={message.pending === true}
-                      onOpenPage={setOpenPage}
+                      onOpenPage={openCitedPage}
+                      documents={across ? documents : undefined}
                     />
                     {/* Only saved answers have an id the server knows. */}
                     {message.pending !== true && (
@@ -144,7 +180,7 @@ export function ChatView({ document, initialChatId, initialMessages }: Props) {
           aria-label="Your question"
           rows={2}
           value={question}
-          placeholder={`Ask a question about ${document.filename}`}
+          placeholder={across ? "Ask a question across these documents" : `Ask a question about ${subject}`}
           onChange={(event) => setQuestion(event.target.value)}
           onKeyDown={(event) => {
             if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
@@ -173,10 +209,10 @@ export function ChatView({ document, initialChatId, initialMessages }: Props) {
       {openPage !== null && (
         <div className="fixed inset-y-0 right-0 z-10 w-full max-w-md border-l shadow-xl">
           <PagePanel
-            documentId={document.id}
-            pageNumber={openPage}
+            documentId={openPage.documentId}
+            pageNumber={openPage.pageNumber}
             onClose={() => setOpenPage(null)}
-            onNavigate={setOpenPage}
+            onNavigate={(pageNumber) => setOpenPage({ ...openPage, pageNumber })}
           />
         </div>
       )}

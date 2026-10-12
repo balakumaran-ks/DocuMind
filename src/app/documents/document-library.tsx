@@ -62,6 +62,7 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
   const [indexing, setIndexing] = useState<Record<string, number | null>>({});
 
   const atCap = documents.length >= LIMITS.maxDocumentsPerUser;
+  const readyCount = documents.filter((document) => document.status === "ready").length;
   const waiting = Object.values(indexing).some((seconds) => seconds !== null && seconds > 0);
 
   // Count the quota wait down once a second while any document is waiting.
@@ -205,6 +206,15 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
         <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
           {error}
         </p>
+      )}
+
+      {readyCount >= 2 && (
+        <Link
+          href="/ask"
+          className="self-start rounded-xl border border-indigo-200 px-4 py-2 text-sm font-medium text-indigo-700 hover:bg-indigo-50 dark:border-indigo-900 dark:text-indigo-300 dark:hover:bg-indigo-950"
+        >
+          Ask across documents →
+        </Link>
       )}
 
       {documents.length === 0 ? (

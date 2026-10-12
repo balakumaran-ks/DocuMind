@@ -18,7 +18,9 @@
 - **Upload a text PDF** (up to 4 MB and 50 pages). Text is extracted and stored page by page.
 - **Ask questions** and get a streamed answer grounded in the five most relevant passages.
 - **Page-level citations:** every `[p. N]` in an answer is clickable and opens that page's text.
+- **Ask across documents:** pick two or more documents and ask once; citations name the document by letter, as in `[A p. 3]`.
 - **Refuses instead of guessing** when the document does not contain the answer.
+- **Rate answers** with thumbs up or down; each answer keeps the passages it was built from, so a poor one can be traced.
 - **Private by design:** Google sign-in, and every query and search is filtered by user.
 
 ## How it works

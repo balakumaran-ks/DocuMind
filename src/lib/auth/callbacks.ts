@@ -30,5 +30,5 @@ export function sessionCallback({ session, token }: { session: Session; token: J
 
 /** Pages that need a signed-in user. API routes check the session themselves and answer 401. */
 export function isProtectedPath(pathname: string): boolean {
-  return pathname === "/documents" || pathname.startsWith("/documents/");
+  return pathname === "/documents" || pathname.startsWith("/documents/") || pathname === "/ask";
 }

@@ -12,4 +12,4 @@ export const proxy = auth((request) => {
   }
 });
 
-export const config = { matcher: ["/documents/:path*"] };
+export const config = { matcher: ["/documents/:path*", "/ask"] };
