@@ -9,7 +9,7 @@
 ![Gemini](https://img.shields.io/badge/Gemini-AI%20SDK-4285f4?logo=googlegemini&logoColor=white)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
 
-> **Status:** MVP complete and live at [documind99.vercel.app](https://documind99.vercel.app): Google sign-in, upload, cited answers, the page panel and chat history, with a first eval baseline below. See the [roadmap](#roadmap).
+> **Status:** V1 complete and live at [documind99.vercel.app](https://documind99.vercel.app): Google sign-in, upload, cited answers with the page panel, asking across documents, ratings and chat history, measured by the eval set below. See the [roadmap](#roadmap).
 
 ![DocuMind system architecture](docs/assets/architecture-overview.png)
 
@@ -42,8 +42,7 @@ Uploads are parsed, chunked and embedded **once**. Each question then runs one f
 | Database + search | MongoDB Atlas, Atlas Vector Search + Atlas Search | Data and embeddings in one place; vector and keyword results merged with `$rankFusion` ([ADR-0002](docs/adr/0002-mongodb-atlas-vector-search.md), [ADR-0010](docs/adr/0010-hybrid-search-with-rank-fusion.md)) |
 | PDF parsing | unpdf (PDF.js packaged for serverless) | Text per page, which citations depend on |
 | LLM + embeddings | Gemma 4 for answers (Gemini 3.5 Flash as backup) and Gemini embeddings, via the Vercel AI SDK | Free tier; models are set by environment variables ([ADR-0003](docs/adr/0003-gemini-via-vercel-ai-sdk.md), [ADR-0009](docs/adr/0009-gemma-answers-with-gemini-backup.md)) |
-| Queue (V1) | BullMQ + Upstash Redis | Background ingestion with retries and progress |
-| Tests + CI | Vitest, Playwright, GitHub Actions | Merges blocked unless every check passes |
+| Tests + CI | Vitest (unit, component, and integration against a real MongoDB), GitHub Actions | Merges blocked unless every check passes |
 
 ## Evaluation
 

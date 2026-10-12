@@ -145,6 +145,13 @@
         border-color: #10b981;
         background: #10b981 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12l5 5 9-10'/%3E%3C/svg%3E") center / 10px no-repeat;
       }
+      .phase li.skip {
+        color: #64748b;
+      }
+      .phase li.skip::before {
+        border-color: #94a3b8;
+        background: #e2e8f0 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='4' stroke-linecap='round'%3E%3Cpath d='M6 12h12'/%3E%3C/svg%3E") center / 10px no-repeat;
+      }
       .hand {
         font-size: 10px;
         font-weight: 700;
@@ -189,15 +196,15 @@
     <!-- one week = 264.67px starting at x=56 -->
     <div class="bar" style="--c: #10b981; left: 56px; width: 76px; padding: 0 9px; gap: 5px; font-size: 12px"><span data-icon="check"></span>Setup</div>
     <div class="bar" style="--c: #10b981; left: 138px; width: 441px"><span data-icon="check"></span>MVP: upload, ask, cite, refuse</div>
-    <div class="bar" style="--c: var(--teal); left: 585px; width: 259px"><span data-icon="zap"></span>V1 features</div>
-    <div class="bar" style="--c: var(--blue); left: 850px; width: 259px"><span data-icon="target"></span>Retrieval quality</div>
+    <div class="bar" style="--c: #10b981; left: 585px; width: 259px"><span data-icon="check"></span>V1 features</div>
+    <div class="bar" style="--c: #10b981; left: 850px; width: 259px"><span data-icon="check"></span>Retrieval quality</div>
     <div class="bar" style="--c: var(--rose); left: 1115px; width: 259px"><span data-icon="shield"></span>Hardening</div>
     <div class="bar" style="--c: var(--amber); left: 1380px; width: 264px"><span data-icon="flag"></span>Showcase</div>
 
     <div class="rail"></div>
     <div class="gate" style="left: 135px"><div class="diamond" style="background: #10b981"><b>1</b></div><div class="glabel">Setup gate<small>CI green &check;</small></div></div>
     <div class="gate" style="left: 582px"><div class="diamond" style="background: #10b981"><b>2</b></div><div class="glabel">MVP gate<small>live demo + 15 evals &check;</small></div></div>
-    <div class="gate" style="left: 1112px"><div class="diamond"><b>3</b></div><div class="glabel">Quality gate<small>hit@5 &ge; 85%</small></div></div>
+    <div class="gate" style="left: 1112px"><div class="diamond" style="background: #10b981"><b>3</b></div><div class="glabel">Quality gate<small>hit@5 96% &ge; 85% &check;</small></div></div>
     <div class="gate" style="left: 1377px"><div class="diamond"><b>4</b></div><div class="glabel">Ship gate<small>E2E + security pass</small></div></div>
 
     <div class="node phase accent" style="--c: #10b981; left: 56px">
@@ -225,46 +232,51 @@
         <li class="done">First 15 evals, deploy</li>
       </ul>
     </div>
-    <div class="node phase" style="--c: var(--teal); left: 591.2px">
+    <div class="node phase accent" style="--c: #10b981; left: 591.2px">
+      <span class="status done">DONE</span>
       <div class="wk">Week 3</div>
       <div class="title">V1 features</div>
       <ul>
-        <li>Workspaces: ask across documents</li>
-        <li>BullMQ + Upstash worker, retries, progress bar</li>
-        <li>Thumbs up/down on answers</li>
+        <li class="done">Ask across documents, [A p. 3] citations</li>
+        <li class="done">Thumbs up/down on answers</li>
+        <li class="done">Batched, resumable indexing with progress</li>
+        <li class="skip">Queue + worker: not built (ADR-0011)</li>
       </ul>
     </div>
-    <div class="node phase accent" style="--c: var(--blue); left: 858.8px">
-      <span class="status next">IN PROGRESS</span>
+    <div class="node phase accent" style="--c: #10b981; left: 858.8px">
+      <span class="status done">DONE</span>
       <div class="wk">Week 4</div>
       <div class="title">Retrieval quality</div>
       <ul>
-        <li class="done">30 eval questions, baseline</li>
-        <li class="done">Passage-level hit@5</li>
-        <li class="done">Header/footer stripping: tried, dropped</li>
-        <li>2&ndash;3 chunk sizes, keep best hit@5</li>
-        <li>Hybrid search + reciprocal rank fusion</li>
-        <li>Rerank top 20 &rarr; 5 if evals improve</li>
-        <li>One ADR per change, with numbers</li>
+        <li class="done">34 eval questions, passage-level hit@5</li>
+        <li class="done">Hybrid search + RRF: hit@5 87% &rarr; 96%</li>
+        <li class="skip">Header/footer stripping: tried, dropped</li>
+        <li class="skip">Other chunk sizes: not run (miss is cross-page)</li>
+        <li class="skip">Reranking: not adopted (extra model call)</li>
+        <li class="done">One ADR per change, with numbers</li>
       </ul>
     </div>
-    <div class="node phase" style="--c: var(--rose); left: 1126.4px">
+    <div class="node phase accent" style="--c: var(--rose); left: 1126.4px">
+      <span class="status next">ONE OPEN</span>
       <div class="wk">Week 5</div>
       <div class="title">Hardening</div>
       <ul>
+        <li class="done">Integration tests for every route</li>
+        <li class="done">Per-user caps, file checks</li>
+        <li class="done">Prompt-injection questions in the eval</li>
+        <li class="done">Usage report: npm run stats</li>
         <li>Playwright main-flow test</li>
-        <li>Integration tests for both routes</li>
-        <li>Per-user caps, file checks, injection guard</li>
-        <li>Query logging + /admin stats</li>
       </ul>
     </div>
-    <div class="node phase" style="--c: var(--amber); left: 1394px">
+    <div class="node phase accent" style="--c: var(--amber); left: 1394px">
+      <span class="status next">ONE OPEN</span>
       <div class="wk">Week 6</div>
       <div class="title">Showcase</div>
       <ul>
-        <li>README, demo GIF, 2-minute video</li>
-        <li>Live demo link</li>
-        <li>Eval results with before/after numbers</li>
+        <li class="done">README with eval tables</li>
+        <li class="done">Live demo link</li>
+        <li class="done">Eval results with before/after numbers</li>
+        <li>Demo GIF and 2-minute video</li>
       </ul>
     </div>
 

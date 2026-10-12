@@ -306,8 +306,8 @@
     <div class="strip" style="left: 56px; top: 830px; width: 1588px">
       <span class="badge" data-icon="zap"></span>
       <div>
-        <b>V1 (Week 3):</b> the route returns <span class="mono">202 Accepted</span> after step 2; steps 3&ndash;8 run in a
-        BullMQ worker on Upstash Redis with retries, and the UI shows a progress bar.
+        <b>Large documents:</b> the route returns <span class="mono">202 Accepted</span> after the first batch of 80 chunks; the
+        document list embeds the rest one batch per request, shows progress, and resumes after a quota pause (ADR-0008).
       </div>
     </div>
 
