@@ -16,6 +16,10 @@ describe("LIMITS", () => {
     expect(LIMITS.maxUploadsPerDay).toBeGreaterThan(LIMITS.maxDocumentsPerUser);
   });
 
+  it("waits up to 25 seconds for a copied sample to become searchable", () => {
+    expect(LIMITS.searchableWaitSeconds).toBe(25);
+  });
+
   it("keeps stored file names short enough to show", () => {
     expect(LIMITS.maxFilenameChars).toBe(120);
   });

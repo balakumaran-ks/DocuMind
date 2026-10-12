@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { LIMITS } from "@/lib/limits";
@@ -119,6 +119,19 @@ describe("DocumentLibrary — samples", () => {
     const link = await screen.findByRole("link", { name: "NIST Cybersecurity Framework 2.0.pdf" });
     expect(link.getAttribute("href")).toBe("/documents/6ac68534ae92936b3b5a0599");
     expect(screen.queryByRole("button", { name: nist })).toBeNull();
+  });
+
+  it("says the sample is being prepared, and blocks the other buttons, until it is added", async () => {
+    let release: (response: Response) => void = () => undefined;
+    fetchMock.mockImplementation(() => new Promise<Response>((resolve) => void (release = resolve)));
+    const { user } = setup([]);
+
+    await user.click(screen.getByRole("button", { name: nist }));
+
+    expect(screen.getByRole("status").textContent).toMatch(/getting the sample ready/i);
+    expect((screen.getByRole("button", { name: /IRS Publication 501/ }) as HTMLButtonElement).disabled).toBe(true);
+    release(json(201, { document: doc({ id: "6ac68534ae92936b3b5a0599", filename: "NIST Cybersecurity Framework 2.0.pdf" }) }));
+    await waitFor(() => expect(screen.queryByRole("status")).toBeNull());
   });
 
   it("shows the server's message when a sample can't be added", async () => {

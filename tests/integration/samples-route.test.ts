@@ -7,6 +7,7 @@ import { insertDocumentWithPages } from "@/lib/db/documents";
 import { reserveUpload } from "@/lib/db/uploads";
 import { ingestDocument } from "@/lib/ingest";
 import { LIMITS } from "@/lib/limits";
+import { waitUntilSearchable } from "@/lib/rag/searchable";
 import { SAMPLES_USER } from "@/lib/samples/catalog";
 import { fakeEmbedder } from "./helpers/fake-embedder";
 import { startMongo, stubServerEnv } from "./helpers/mongo";
@@ -28,6 +29,9 @@ vi.mock("@/lib/ai/embed", async (importOriginal) => ({
     return fake.current.embedder;
   },
 }));
+
+// mongodb-memory-server has no search indexes, so "searchable" is decided by the test.
+vi.mock("@/lib/rag/searchable", () => ({ waitUntilSearchable: vi.fn(async () => true) }));
 
 const DB_NAME = "documind_samples_test";
 
@@ -117,6 +121,26 @@ describe("POST /api/documents/samples", () => {
       templateChunks.map((c) => [USER_ID, c.text, c.contentHash, c.embedding]),
     );
     expect(fake.current?.embeddedTexts()).toEqual([]);
+  });
+
+  it("answers only once search can see the copy, so a first question finds it", async () => {
+    await seedTemplate();
+    vi.mocked(waitUntilSearchable).mockClear();
+
+    const { body } = await read(await post({ sample: "nist-csf" }));
+
+    expect(waitUntilSearchable).toHaveBeenCalledTimes(1);
+    expect(waitUntilSearchable).toHaveBeenCalledWith(expect.anything(), USER_ID, new ObjectId(String(body.document.id)), 3);
+  });
+
+  it("still adds the sample if search takes longer than the wait", async () => {
+    await seedTemplate();
+    vi.mocked(waitUntilSearchable).mockResolvedValueOnce(false);
+
+    const { status, body } = await read(await post({ sample: "nist-csf" }));
+
+    expect(status).toBe(201);
+    expect(body.document.status).toBe("ready");
   });
 
   it("leaves the template where it was, still owned by the samples user", async () => {
