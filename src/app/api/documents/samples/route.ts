@@ -9,13 +9,18 @@ import { copySample, findSampleTemplate, hasSample } from "@/lib/db/samples";
 import { reserveUpload } from "@/lib/db/uploads";
 import { toDocumentSummary } from "@/lib/documents/summary";
 import { LIMITS } from "@/lib/limits";
+import { waitUntilSearchable } from "@/lib/rag/searchable";
 import { sampleByKey } from "@/lib/samples/catalog";
+
+// Copying takes a couple of seconds; Atlas then needs 10–15 s to make the copy searchable.
+export const maxDuration = 60;
 
 const SampleBody = z.object({ sample: z.string().refine((key) => sampleByKey(key) !== null) });
 
 /**
  * Adds a sample document to the user's library: a copy of a pre-indexed
- * template, ready at once and costing no embedding quota. Counts as an upload.
+ * template, costing no embedding quota, returned once it is searchable.
+ * Counts as an upload.
  */
 export async function POST(request: Request) {
   return withDatabaseErrors(async () => {
@@ -52,6 +57,9 @@ export async function POST(request: Request) {
     }
 
     const document = await copySample(db, userId, template);
+    // Answer once search can see the copy, so a question asked straight away finds it. If it takes
+    // longer than the wait, the sample is still added; it becomes searchable moments later.
+    await waitUntilSearchable(db, userId, document._id, document.chunkCount ?? 0);
     return Response.json({ document: toDocumentSummary(document) }, { status: 201 });
   });
 }

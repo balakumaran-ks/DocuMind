@@ -13,8 +13,9 @@
 
 ### 013b — interface
 
-- The document list offers each sample with a "Try a sample" button while the library has room; adding one shows it as ready, and errors show the server's message.
+- The document list offers each sample not yet in the library while it has room; adding one says the sample is being prepared, then shows it as ready, and errors show the server's message.
 - The landing page says a sample is available, so no PDF is needed to try it.
+- Adding a sample answers only once both search indexes see the copy (`waitUntilSearchable`, up to `LIMITS.searchableWaitSeconds`), because Atlas takes a few seconds to index new rows and a question asked straight away would otherwise find nothing. The eval uses the same check.
 
 ## Tests first
 

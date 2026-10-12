@@ -15,7 +15,7 @@
 
 ## What it does
 
-- **Upload a text PDF** (up to 4 MB and 50 pages). Text is extracted and stored page by page.
+- **Upload a text PDF** (up to 4 MB and 50 pages). Text is extracted and stored page by page. No PDF to hand? Add a sample document (the NIST Cybersecurity Framework or IRS Publication 501) in one click.
 - **Ask questions** and get a streamed answer grounded in the five most relevant passages.
 - **Page-level citations:** every `[p. N]` in an answer is clickable and opens that page's text.
 - **Ask across documents:** pick two or more documents and ask once; citations name the document by letter, as in `[A p. 3]`.

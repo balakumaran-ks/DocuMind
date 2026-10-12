@@ -6,6 +6,7 @@ import { isDailyQuota, quotaMessage } from "@/lib/ai/quota";
 import { errorMessageFrom, GENERIC_ERROR } from "@/lib/api/client";
 import type { DocumentSummary } from "@/lib/documents/summary";
 import { formatBytes, LIMITS } from "@/lib/limits";
+import { SAMPLE_DOCUMENTS } from "@/lib/samples/catalog";
 import { checkFileBeforeUpload } from "@/lib/upload/client-check";
 
 const OFFLINE = "The upload didn't reach the server. Check your connection and try again.";
@@ -56,6 +57,7 @@ type Props = {
 export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) {
   const [documents, setDocuments] = useState(initialDocuments);
   const [uploading, setUploading] = useState(false);
+  const [addingSample, setAddingSample] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
   // Documents this tab is indexing, with the seconds left to wait for the quota (null while a batch runs).
@@ -63,6 +65,8 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
 
   const atCap = documents.length >= LIMITS.maxDocumentsPerUser;
   const readyCount = documents.filter((document) => document.status === "ready").length;
+  // A copy keeps the sample's file name, so a sample with that name is already in the library.
+  const samples = SAMPLE_DOCUMENTS.filter((sample) => !documents.some((document) => document.filename === sample.filename));
   const waiting = Object.values(indexing).some((seconds) => seconds !== null && seconds > 0);
 
   // Count the quota wait down once a second while any document is waiting.
@@ -157,6 +161,26 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
     }
   }
 
+  /** Adds a ready copy of a pre-indexed sample document; it costs no embedding quota. */
+  async function addSample(key: string) {
+    setError(null);
+    setAddingSample(true);
+    try {
+      const response = await fetch("/api/documents/samples", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ sample: key }),
+      });
+      if (!response.ok) return setError(await errorMessageFrom(response));
+      const { document } = (await response.json()) as { document: DocumentSummary };
+      setDocuments((current) => [document, ...current]);
+    } catch {
+      setError(OFFLINE);
+    } finally {
+      setAddingSample(false);
+    }
+  }
+
   async function remove(id: string) {
     setConfirming(null);
     setError(null);
@@ -201,6 +225,29 @@ export function DocumentLibrary({ initialDocuments, sleep = realSleep }: Props) 
         Document text is sent to Google&rsquo;s Gemini API, whose free tier may use it to improve Google&rsquo;s products.
         Don&rsquo;t upload anything confidential or personal.
       </p>
+
+      {!atCap && samples.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-zinc-600 dark:text-zinc-400">No PDF to hand? Try a sample:</span>
+          {samples.map((sample) => (
+            <button
+              key={sample.key}
+              type="button"
+              title={sample.description}
+              disabled={addingSample || uploading}
+              onClick={() => void addSample(sample.key)}
+              className="rounded-lg border border-zinc-300 px-3 py-1.5 hover:border-indigo-400 hover:text-indigo-700 disabled:cursor-wait disabled:opacity-50 dark:border-zinc-700 dark:hover:text-indigo-300"
+            >
+              {sample.filename.replace(/\.pdf$/, "")} <span className="text-zinc-500">· {sample.pageCount} pages</span>
+            </button>
+          ))}
+          {addingSample && (
+            <span role="status" className="text-zinc-500">
+              Getting the sample ready for questions… (about 15 s)
+            </span>
+          )}
+        </div>
+      )}
 
       {atCap && (
         <p className="text-sm text-zinc-600 dark:text-zinc-400">

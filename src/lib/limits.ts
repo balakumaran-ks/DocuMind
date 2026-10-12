@@ -33,6 +33,8 @@ export const LIMITS = {
   vectorNumCandidates: 100,
   /** Results each search (vector and keyword) passes to rank fusion, which keeps the top `retrievalTopK`. */
   fusionCandidates: 20,
+  /** How long adding a sample waits for Atlas to make the copy searchable (usually 10–15 s). */
+  searchableWaitSeconds: 25,
   /** Earlier chat messages (questions and answers) sent with each new question. */
   historyMessages: 6,
   /** Longest question accepted by the ask route. */
