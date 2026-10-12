@@ -14,9 +14,10 @@ export const OFFLINE = "Your question didn't reach the server. Check your connec
 /**
  * POST /api/ask and read the plain-text stream, passing each piece of the
  * answer to `onText` as it arrives. The chat id comes back in `X-Chat-Id`.
+ * One document is sent as `documentId`, several as `documentIds`.
  */
 export async function askQuestion(input: {
-  documentId: string;
+  documentIds: string[];
   chatId: string | null;
   question: string;
   onText: (text: string) => void;
@@ -27,7 +28,7 @@ export async function askQuestion(input: {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        documentId: input.documentId,
+        ...(input.documentIds.length === 1 ? { documentId: input.documentIds[0] } : { documentIds: input.documentIds }),
         ...(input.chatId ? { chatId: input.chatId } : {}),
         question: input.question,
       }),

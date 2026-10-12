@@ -74,6 +74,16 @@ describe("DocumentLibrary — list", () => {
     expect(within(items[1]!).queryByRole("link")).toBeNull();
     expect(within(items[2]!).getByText("Processing")).toBeTruthy();
   });
+
+  it("offers asking across documents once two are ready", () => {
+    setup([doc(), doc({ id: "6ac68534ae92936b3b5a0516", filename: "policy.pdf" })]);
+    expect(screen.getByRole("link", { name: /ask across documents/i }).getAttribute("href")).toBe("/ask");
+  });
+
+  it("doesn't offer it with fewer than two ready documents", () => {
+    setup([doc(), doc({ id: "6ac68534ae92936b3b5a0516", filename: "new.pdf", status: "processing", chunkCount: null })]);
+    expect(screen.queryByRole("link", { name: /ask across documents/i })).toBeNull();
+  });
 });
 
 describe("DocumentLibrary — upload", () => {

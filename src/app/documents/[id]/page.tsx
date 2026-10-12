@@ -48,7 +48,7 @@ export default async function DocumentPage(props: PageProps<"/documents/[id]">) 
         <p className="text-sm text-zinc-500">{document.pageCount} pages</p>
       </div>
       <ChatView
-        document={{ id: document._id.toHexString(), filename: document.filename, pageCount: document.pageCount }}
+        documents={[{ id: document._id.toHexString(), filename: document.filename, pageCount: document.pageCount }]}
         initialChatId={latest ? latest._id.toHexString() : null}
         initialMessages={messages}
       />

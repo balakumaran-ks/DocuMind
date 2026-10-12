@@ -1,7 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { REFUSAL } from "@/lib/rag/prompt";
+import { REFUSAL, REFUSAL_ACROSS } from "@/lib/rag/prompt";
 import { Answer } from "./answer";
 
 afterEach(cleanup);
@@ -88,5 +88,52 @@ describe("Answer — refusal", () => {
   it("recognises the refusal with surrounding whitespace", () => {
     setup(`  ${REFUSAL}\n`, []);
     expect(screen.getByText("Not in this document")).toBeTruthy();
+  });
+
+  it("leaves lettered markers as written in a single-document answer", () => {
+    setup("Monthly [A p. 2].", [2]);
+    expect(pageButtons()).toEqual([]);
+    expect(document.body.textContent).toContain("[A p. 2]");
+  });
+});
+
+describe("Answer — across documents", () => {
+  const documents = [
+    { id: "6ac68534ae92936b3b5a0515", filename: "handbook.pdf" },
+    { id: "6ac7025ed3d5f6ed7fd8be94", filename: "policy.pdf" },
+  ];
+  const [handbook, policy] = documents.map((d) => d.id);
+
+  function setupAcross(content: string, citations: { documentId?: string; pageNumber: number }[]) {
+    const onOpenPage = vi.fn();
+    render(<Answer content={content} citations={citations} streaming={false} onOpenPage={onOpenPage} documents={documents} />);
+    return { onOpenPage, user: userEvent.setup() };
+  }
+
+  it("turns validated lettered markers into buttons that open that document's page, naming it", async () => {
+    const { onOpenPage, user } = setupAcross("Monthly [A p. 2]. Refunds [B p. 4, 5].", [
+      { documentId: handbook, pageNumber: 2 },
+      { documentId: policy, pageNumber: 4 },
+      { documentId: policy, pageNumber: 5 },
+    ]);
+
+    expect(pageButtons().map((b) => b.textContent)).toEqual(["A p. 2", "B p. 4", "B p. 5"]);
+    const button = screen.getByRole("button", { name: "Open page 4 of policy.pdf" });
+    expect(button.getAttribute("title")).toBe("policy.pdf");
+    await user.click(button);
+    expect(onOpenPage).toHaveBeenCalledWith(4, policy);
+  });
+
+  it("strikes through a page validated for a different document, unlettered markers and unknown letters", () => {
+    setupAcross("X [B p. 2]. Y [p. 2]. Z [C p. 2].", [{ documentId: handbook, pageNumber: 2 }]);
+    expect(pageButtons()).toEqual([]);
+    expect(screen.getByText("B p. 2").className).toMatch(/line-through/);
+    expect(screen.getByText("p. 2").className).toMatch(/line-through/);
+    expect(screen.getByText("C p. 2").className).toMatch(/line-through/);
+  });
+
+  it("marks the cross-document refusal as 'Not in these documents'", () => {
+    setupAcross(REFUSAL_ACROSS, []);
+    expect(screen.getByText("Not in these documents")).toBeTruthy();
   });
 });
