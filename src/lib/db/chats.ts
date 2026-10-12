@@ -3,15 +3,24 @@ import type { Rating } from "@/lib/chat/message";
 import type { Citation } from "@/lib/rag/citations";
 import type { ChatTurn } from "@/lib/rag/prompt";
 
-/** One conversation about one document. */
+/**
+ * One conversation: about one document (`documentId`, shown on that document's
+ * page) or across several (`documentIds`, two or more, in letter order A, B, C…).
+ */
 export type StoredChat = {
   _id: ObjectId;
   userId: string;
-  documentId: ObjectId;
+  documentId?: ObjectId;
+  documentIds?: ObjectId[];
   title: string;
   createdAt: Date;
   updatedAt: Date;
 };
+
+/** The documents a chat searches, in letter order. */
+export function chatDocumentIds(chat: StoredChat): ObjectId[] {
+  return chat.documentIds ?? (chat.documentId ? [chat.documentId] : []);
+}
 
 /** A question, or an answer with what it was built from. */
 export type StoredMessage = {
@@ -53,13 +62,24 @@ export async function countQuestionsSince(db: Db, userId: string, since: Date): 
   return messages(db).countDocuments({ userId, role: "user", createdAt: { $gte: since } });
 }
 
-/** The user's chat about this document, or null if it doesn't exist or isn't theirs. */
-export async function findChat(db: Db, userId: string, documentId: ObjectId, chatId: string): Promise<StoredChat | null> {
+/**
+ * The user's chat about exactly these documents, or null if it doesn't exist,
+ * isn't theirs, or covers other documents. A chat across documents matches the
+ * same set in any order; a single-document chat matches only its one document.
+ */
+export async function findChat(db: Db, userId: string, documentIds: ObjectId[], chatId: string): Promise<StoredChat | null> {
   if (!/^[0-9a-f]{24}$/i.test(chatId)) return null;
-  return chats(db).findOne({ _id: new ObjectId(chatId), userId, documentId });
+  const [only] = documentIds;
+  if (!only) return null;
+  const documents =
+    documentIds.length === 1 ? { documentId: only } : { documentIds: { $size: documentIds.length, $all: documentIds } };
+  return chats(db).findOne({ _id: new ObjectId(chatId), userId, ...documents });
 }
 
-export async function createChat(db: Db, input: { userId: string; documentId: ObjectId; title: string }): Promise<StoredChat> {
+export async function createChat(
+  db: Db,
+  input: { userId: string; title: string } & ({ documentId: ObjectId } | { documentIds: ObjectId[] }),
+): Promise<StoredChat> {
   const now = new Date();
   const chat: StoredChat = { _id: new ObjectId(), ...input, createdAt: now, updatedAt: now };
   await chats(db).insertOne(chat);
@@ -82,9 +102,9 @@ export async function listMessages(db: Db, userId: string, chatId: ObjectId): Pr
   return messages(db).find({ chatId, userId }).sort({ createdAt: 1, _id: 1 }).toArray();
 }
 
-/** Deletes a document's chats and their messages (messages first). */
+/** Deletes a document's chats, including chats across documents that include it, and their messages (messages first). */
 export async function deleteChatsForDocument(db: Db, userId: string, documentId: ObjectId): Promise<void> {
-  const chatIds = await chats(db).distinct("_id", { userId, documentId });
+  const chatIds = await chats(db).distinct("_id", { userId, $or: [{ documentId }, { documentIds: documentId }] });
   if (chatIds.length === 0) return;
   await messages(db).deleteMany({ userId, chatId: { $in: chatIds } });
   await chats(db).deleteMany({ userId, _id: { $in: chatIds } });

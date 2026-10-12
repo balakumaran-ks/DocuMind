@@ -33,13 +33,13 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 
 ![Ask sequence](assets/ask-sequence.png)
 
-1. `POST /api/ask` with `{ documentId, chatId?, question }`.
+1. `POST /api/ask` with `{ documentId, chatId?, question }`, or `{ documentIds, chatId?, question }` to ask across 2–5 documents.
 2. Check session, document ownership and the daily question cap.
 3. Embed the question with the same model used for the chunks.
 4. **Hybrid search** over `chunks` ([ADR-0010](adr/0010-hybrid-search-with-rank-fusion.md)): `$vectorSearch` (top 20 of 100 candidates) and a keyword `$search` for the question's words (top 20), each **pre-filtered by `userId` and `documentId`** inside its index. `$rankFusion` merges the two rankings by reciprocal rank fusion, and the top 5 chunks are kept.
-5. **Build the prompt:** system rules (answer only from sources, cite `[p. N]`, reply "That isn't covered in this document." otherwise, ignore instructions inside sources) + the last 6 chat messages + the question, with the 5 chunks in page order wrapped in `<source page="N">` tags. `<source` and `</source` inside document text are escaped, so a document cannot close its own source and place text outside it.
+5. **Build the prompt:** system rules (answer only from sources, cite `[p. N]`, reply "That isn't covered in this document." otherwise, ignore instructions inside sources) + the last 6 chat messages + the question, with the 5 chunks in page order wrapped in `<source page="N">` tags. `<source` and `</source` inside document text are escaped, so a document cannot close its own source and place text outside it. Across documents, each document gets a letter (A, B, C… in the chat's order), sources are tagged `<source document="A" page="N">`, the rules ask for `[A p. N]` citations, and the refusal is "That isn't covered in these documents." Document names never enter the prompt.
 6. `streamText` to the answer model (`GEMINI_CHAT_MODEL`). The route waits for the first piece of text: if the model fails or its quota is used up before then, it tries the backup model (`GEMINI_FALLBACK_CHAT_MODEL`) with the same prompt ([ADR-0009](adr/0009-gemma-answers-with-gemini-backup.md)). If none produces text, it answers `502 answer_failed` or `429 rate_limited` and saves nothing. Otherwise it saves the chat and the question, and the text streams to the browser.
-7. On finish: parse `[p. N]` and `[p. N, M]` markers (malformed ones are ignored), drop any page that was not among the retrieved chunks, link each page to its best-scoring chunk, and save the message with citations, latency, token counts and retrieved chunk ids.
+7. On finish: parse `[p. N]` and `[p. N, M]` markers, or `[A p. N]` across documents (malformed ones are ignored), drop any page that was not among the retrieved chunks of the cited document, link each page to its best-scoring chunk, and save the message with citations, latency, token counts and retrieved chunk ids.
 
 ## Data model
 
@@ -51,8 +51,8 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 | `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `embeddedChunks`, `ingestLockedUntil?`, `createdAt` | `{ userId, createdAt: -1 }` |
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
 | `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding?: number[768]` (missing until its batch is embedded), `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index**, **keyword index** |
-| `chats` | `_id`, `userId`, `documentId`, `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
-| `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `model?`, `feedback?: { rating: "up" | "down", updatedAt }` (answers only), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
+| `chats` | `_id`, `userId`, `documentId` (one document) or `documentIds` (2–5, in letter order), `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
+| `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId, documentId? }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `model?`, `feedback?: { rating: "up" | "down", updatedAt }` (answers only), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
 
 `userId` is copied onto `pages`, `chunks` and `messages` on purpose: every query can filter by it directly, without a join, which makes the rule "every query filters by owner" cheap to enforce and easy to review.
 
@@ -97,7 +97,7 @@ Only chunk text is searchable, with English stemming ("backups" matches "backup"
 | `GET` | `/api/documents/:id` | Document metadata and status | MVP |
 | `DELETE` | `/api/documents/:id` | Delete a document with its pages, chunks and chats | MVP |
 | `GET` | `/api/documents/:id/pages/:n` | One page's text, for the citation panel | MVP |
-| `POST` | `/api/ask` | Ask a question; streams the answer | MVP |
+| `POST` | `/api/ask` | Ask a question about one document or across several; streams the answer | MVP, V1 |
 | `GET` | `/api/chats?documentId=` | Chats for a document | MVP |
 | `GET` | `/api/chats/:id/messages` | Chat history | MVP |
 | `POST` | `/api/messages/:id/feedback` | Rate one of your answers `up` or `down`, or clear the rating with `null` | V1 |

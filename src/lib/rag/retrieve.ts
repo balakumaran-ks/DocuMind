@@ -5,20 +5,22 @@ import { LIMITS } from "@/lib/limits";
 /** A chunk returned by hybrid search, with its fused rank score (higher is better). */
 export type RetrievedChunk = {
   _id: ObjectId;
+  documentId: ObjectId;
   pageNumber: number;
   chunkIndex: number;
   text: string;
   score: number;
 };
 
-type SearchInput = { userId: string; documentId: ObjectId; queryVector: number[]; queryText: string };
+/** One user's question about one or more of their documents. */
+type SearchInput = { userId: string; documentIds: ObjectId[]; queryVector: number[]; queryText: string };
 
 /**
- * Nearest neighbours of the question vector in one user's document. The filter
- * runs inside the index, before the nearest-neighbour search, so other users'
- * chunks are never candidates.
+ * Nearest neighbours of the question vector in the user's chosen documents. The
+ * filter runs inside the index, before the nearest-neighbour search, so other
+ * users' chunks are never candidates.
  */
-export function vectorSearchStage({ userId, documentId, queryVector }: SearchInput): Document {
+export function vectorSearchStage({ userId, documentIds, queryVector }: SearchInput): Document {
   return {
     $vectorSearch: {
       index: VECTOR_INDEX_NAME,
@@ -26,23 +28,23 @@ export function vectorSearchStage({ userId, documentId, queryVector }: SearchInp
       queryVector,
       numCandidates: LIMITS.vectorNumCandidates,
       limit: LIMITS.fusionCandidates,
-      filter: { userId, documentId },
+      filter: { userId, documentId: { $in: documentIds } },
     },
   };
 }
 
 /**
- * Chunks of one user's document that share words with the question, ranked by
- * relevance (BM25). Catches exact names and phrases that vectors can rank low.
+ * Chunks of the user's chosen documents that share words with the question,
+ * ranked by relevance (BM25). Catches exact names and phrases that vectors can rank low.
  */
-export function keywordSearchStage({ userId, documentId, queryText }: SearchInput): Document {
+export function keywordSearchStage({ userId, documentIds, queryText }: SearchInput): Document {
   return {
     $search: {
       index: TEXT_INDEX_NAME,
       compound: {
         filter: [
           { equals: { path: "userId", value: userId } },
-          { equals: { path: "documentId", value: documentId } },
+          { in: { path: "documentId", value: documentIds } },
         ],
         must: [{ text: { query: queryText, path: "text" } }],
       },
@@ -69,11 +71,11 @@ export function hybridSearchPipeline(search: SearchInput): Document[] {
       },
     },
     { $limit: LIMITS.retrievalTopK },
-    { $project: { _id: 1, pageNumber: 1, chunkIndex: 1, text: 1, score: { $meta: "score" } } },
+    { $project: { _id: 1, documentId: 1, pageNumber: 1, chunkIndex: 1, text: 1, score: { $meta: "score" } } },
   ];
 }
 
-/** The chunks of one document that best match the question, best first. */
+/** The chunks of the chosen documents that best match the question, best first. */
 export async function retrieveChunks(input: SearchInput & { db: Db }): Promise<RetrievedChunk[]> {
   const { db, ...search } = input;
   return db.collection("chunks").aggregate<RetrievedChunk>(hybridSearchPipeline(search)).toArray();

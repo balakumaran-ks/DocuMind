@@ -8,7 +8,8 @@ export type ChatMessage = {
   id: string;
   role: "user" | "assistant";
   content: string;
-  citations: { pageNumber: number; chunkId: string }[];
+  /** `documentId` is set on citations in a chat across documents. */
+  citations: { pageNumber: number; chunkId: string; documentId?: string }[];
   /** `null` for questions and unrated answers; absent on messages the browser hasn't reloaded yet. */
   rating?: Rating | null;
 };
@@ -22,6 +23,7 @@ export function toChatMessage(message: StoredMessage): ChatMessage {
     citations: (message.citations ?? []).map((citation) => ({
       pageNumber: citation.pageNumber,
       chunkId: citation.chunkId.toHexString(),
+      ...(citation.documentId ? { documentId: citation.documentId.toHexString() } : {}),
     })),
     rating: message.feedback?.rating ?? null,
   };
