@@ -3,11 +3,14 @@ import { EmbeddingError, getEmbedder } from "@/lib/ai/embed";
 import { getUserId } from "@/lib/auth/user";
 import { getDb, isDatabaseUnavailable } from "@/lib/db/client";
 import { unauthorized, withDatabaseErrors } from "@/lib/api/responses";
+import { startOfUtcDay } from "@/lib/db/chats";
 import { countDocuments, insertDocumentWithPages, listDocuments } from "@/lib/db/documents";
+import { reserveUpload } from "@/lib/db/uploads";
 import { toDocumentSummary } from "@/lib/documents/summary";
 import { startIngestion, type IngestProgress } from "@/lib/ingest";
 import { LIMITS, PDF_MAGIC_BYTES } from "@/lib/limits";
 import { countPages, extractPages, PdfReadError } from "@/lib/pdf/extract";
+import { cleanFilename } from "@/lib/upload/filename";
 import { validateUpload } from "@/lib/upload/validate";
 
 // Parsing and storing a 50-page PDF can take a few seconds (ADR-0005).
@@ -19,6 +22,7 @@ type ErrorCode =
   | "too_large"
   | "not_pdf"
   | "too_many_documents"
+  | "daily_upload_limit_reached"
   | "too_many_pages"
   | "unreadable_pdf"
   | "no_text"
@@ -90,9 +94,20 @@ async function handleUpload(request: Request) {
       );
     }
 
+    // Counted only now, when the upload is valid and about to be embedded; deleting it later doesn't give it back.
+    const now = new Date();
+    if (!(await reserveUpload(db, userId, now, LIMITS.maxUploadsPerDay))) {
+      return error(
+        429,
+        "daily_upload_limit_reached",
+        `You've reached the daily limit of ${LIMITS.maxUploadsPerDay} uploads. It resets at midnight UTC.`,
+        { resetsAt: new Date(startOfUtcDay(now).getTime() + 24 * 60 * 60 * 1000).toISOString() },
+      );
+    }
+
     const documentId = await insertDocumentWithPages(db, {
       userId,
-      filename: file.name,
+      filename: cleanFilename(file.name),
       sizeBytes: file.size,
       sha256: createHash("sha256").update(bytes).digest("hex"),
       pages,

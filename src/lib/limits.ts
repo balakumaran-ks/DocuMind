@@ -11,6 +11,10 @@ export const LIMITS = {
   maxDocumentsPerUser: 5,
   /** Questions a single user may ask per UTC day. */
   maxQuestionsPerDay: 50,
+  /** Uploads a single user may make per UTC day, deleted ones included, to protect the shared embedding quota. */
+  maxUploadsPerDay: 10,
+  /** Longest file name stored for a document; longer names are shortened, keeping the extension. */
+  maxFilenameChars: 120,
   /** Chunks retrieved per question and passed to the model. */
   retrievalTopK: 5,
   /** Maximum chunk length in characters, ~300 tokens (ADR-0004; tuned with evals in week 4). */

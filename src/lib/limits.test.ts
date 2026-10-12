@@ -11,6 +11,15 @@ describe("LIMITS", () => {
     expect(LIMITS.retrievalTopK).toBe(5);
   });
 
+  it("caps uploads per day, so deleting and re-uploading can't drain the shared embedding quota", () => {
+    expect(LIMITS.maxUploadsPerDay).toBe(10);
+    expect(LIMITS.maxUploadsPerDay).toBeGreaterThan(LIMITS.maxDocumentsPerUser);
+  });
+
+  it("keeps stored file names short enough to show", () => {
+    expect(LIMITS.maxFilenameChars).toBe(120);
+  });
+
   it("embeds with at most two parallel calls, to stay inside free-tier rate limits", () => {
     expect(LIMITS.embedMaxParallelCalls).toBe(2);
   });

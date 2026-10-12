@@ -113,6 +113,7 @@ Open http://localhost:3000. `GET /api/health` reports, by name only, any require
 | --- | --- |
 | [PRD](docs/PRD.md) | Problem, user, MVP scope, non-goals, success metrics |
 | [Architecture](docs/ARCHITECTURE.md) | Components, ingest and ask paths, data model, API, security |
+| [Security](docs/SECURITY.md) | Threat model: what is protected, how, and the accepted risks |
 | [ADRs](docs/adr/README.md) | One record per significant decision |
 | [Tasks](docs/tasks/README.md) | Slices of work with acceptance criteria |
 | [Diagrams](docs/diagrams/README.md) | Sources for every image in this README |

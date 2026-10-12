@@ -75,6 +75,11 @@ describe("DocumentLibrary — list", () => {
     expect(within(items[2]!).getByText("Processing")).toBeTruthy();
   });
 
+  it("warns that document text goes to Google's free Gemini tier, so nothing confidential should be uploaded", () => {
+    setup([]);
+    expect(screen.getByText(/sent to google['’]s gemini api/i).textContent).toMatch(/confidential/i);
+  });
+
   it("offers asking across documents once two are ready", () => {
     setup([doc(), doc({ id: "6ac68534ae92936b3b5a0516", filename: "policy.pdf" })]);
     expect(screen.getByRole("link", { name: /ask across documents/i }).getAttribute("href")).toBe("/ask");

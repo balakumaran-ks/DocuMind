@@ -3,6 +3,7 @@ import { readServerEnv } from "@/lib/env";
 import { ensureChatIndexes } from "./chats";
 import { ensureChunkIndexes } from "./chunks";
 import { ensureIndexes } from "./documents";
+import { ensureUploadIndexes } from "./uploads";
 
 /** How long to look for a reachable server before failing (the driver's default is 30 s). */
 const DEFAULT_SERVER_SELECTION_TIMEOUT_MS = 5_000;
@@ -54,6 +55,7 @@ async function connect(): Promise<Connection> {
   await ensureIndexes(db);
   await ensureChunkIndexes(db);
   await ensureChatIndexes(db);
+  await ensureUploadIndexes(db);
   return { client, db };
 }
 
