@@ -99,11 +99,12 @@ Open http://localhost:3000. `GET /api/health` reports, by name only, any require
 | `npm run db:indexes` | Create the Atlas vector and keyword search indexes (once per cluster) |
 | `npm run eval` | Run the eval set against Atlas and Gemini (paced for the free tier; stores its documents under the user `eval`) |
 | `npm run stats` | Usage report: questions per day, answer time, answers per model, refusals, ratings and tokens (aggregates only) |
+| `npm run samples` | Index the one-click sample documents once (skips samples already indexed) |
 | `npm run diagrams` | Re-render the diagrams in `docs/assets/` |
 
 ### External services (all free tiers)
 
-1. **MongoDB Atlas:** create an M0 cluster and a database user, and allow your IP address. Copy the connection string into `MONGODB_URI`, replacing both `<db_username>` and `<db_password>`. Then run `npm run db:indexes` once to create the vector and keyword search indexes (a free cluster allows three in total).
+1. **MongoDB Atlas:** create an M0 cluster and a database user, and allow your IP address. Copy the connection string into `MONGODB_URI`, replacing both `<db_username>` and `<db_password>`. Then run `npm run db:indexes` once to create the vector and keyword search indexes (a free cluster allows three in total), and, once the Gemini key below is set, `npm run samples` to index the sample documents.
 2. **Gemini API:** create a key at [Google AI Studio](https://aistudio.google.com/apikey) and set `GOOGLE_GENERATIVE_AI_API_KEY`.
 3. **Google OAuth:** create an OAuth client (Web application) in Google Cloud Console with the redirect URI `http://localhost:3000/api/auth/callback/google`, then set `AUTH_GOOGLE_ID` and `AUTH_GOOGLE_SECRET`. Generate `AUTH_SECRET` with `npx auth secret`.
 

@@ -21,7 +21,8 @@
     "diagrams": "node scripts/render-diagrams.mjs",
     "db:indexes": "node --env-file=.env.local scripts/create-indexes.ts",
     "eval": "node --env-file=.env.local --import ./scripts/register-alias.mjs scripts/eval.ts",
-    "stats": "node --env-file=.env.local --import ./scripts/register-alias.mjs scripts/stats.ts"
+    "stats": "node --env-file=.env.local --import ./scripts/register-alias.mjs scripts/stats.ts",
+    "samples": "node --env-file=.env.local --import ./scripts/register-alias.mjs scripts/index-samples.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.90",

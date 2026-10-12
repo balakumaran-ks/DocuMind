@@ -22,6 +22,8 @@ export type StoredDocument = {
   ingestLockedUntil?: Date;
   /** Why ingestion failed (status "failed"). */
   error?: string;
+  /** Set on sample templates and on users' copies of them (see src/lib/samples). */
+  sampleKey?: string;
 };
 
 export type StoredPage = {

@@ -48,13 +48,15 @@ One Next.js app serves the UI and the API; MongoDB Atlas holds documents, their 
 | Collection | Key fields | Indexes |
 | --- | --- | --- |
 | `users` | `_id` (the user id, e.g. `google:1082…`), `email`, `name`, `image`, `createdAt`, `lastSignInAt` | `_id` only; upserted on every sign-in |
-| `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `embeddedChunks`, `ingestLockedUntil?`, `createdAt` | `{ userId, createdAt: -1 }` |
+| `documents` | `_id`, `userId`, `filename`, `sizeBytes`, `sha256`, `pageCount`, `status` (`processing` \| `ready` \| `failed`), `error?`, `embeddingModel`, `chunkCount`, `embeddedChunks`, `ingestLockedUntil?`, `sampleKey?` (sample templates and users' copies of them), `createdAt` | `{ userId, createdAt: -1 }` |
 | `pages` | `_id`, `documentId`, `userId`, `pageNumber`, `text`, `charCount`, `isEmpty` | `{ documentId, pageNumber }` unique |
 | `chunks` | `_id`, `documentId`, `userId`, `pageNumber`, `chunkIndex`, `start`, `end`, `text`, `contentHash`, `embedding?: number[768]` (missing until its batch is embedded), `createdAt` | `{ documentId, chunkIndex }` unique, `{ userId, contentHash }`, **vector index**, **keyword index** |
 | `chats` | `_id`, `userId`, `documentId` (one document) or `documentIds` (2–5, in letter order), `title`, `createdAt`, `updatedAt` | `{ userId, documentId, updatedAt: -1 }` |
 | `messages` | `_id`, `chatId`, `userId`, `role` (`user` \| `assistant`), `content`, `citations: [{ pageNumber, chunkId, documentId? }]`, `retrievedChunkIds`, `latencyMs`, `usage: { inputTokens, outputTokens }`, `model?`, `feedback?: { rating: "up" | "down", updatedAt }` (answers only), `createdAt` | `{ chatId, createdAt }`, `{ userId, role, createdAt }` (daily question count) |
 
 `userId` is copied onto `pages`, `chunks` and `messages` on purpose: every query can filter by it directly, without a join, which makes the rule "every query filters by owner" cheap to enforce and easy to review.
+
+Two owners are reserved and can't come from a sign-in (app users are `google:<id>`): `eval`, which holds the eval set's documents, and `samples`, which holds the sample templates. `npm run samples` indexes each template once; adding a sample copies its document, pages and chunks, vectors included, to the user, so it is ready at once and uses no embedding quota.
 
 ### Atlas Vector Search index (`chunks_vector`)
 
@@ -92,6 +94,7 @@ Only chunk text is searchable, with English stemming ("backups" matches "backup"
 | `GET` | `/api/health` | Liveness, plus env vars that are missing or still hold a template placeholder (names only) | Setup ✅ |
 | `*` | `/api/auth/[...nextauth]` | Auth.js handlers | MVP |
 | `POST` | `/api/documents` | Upload a PDF and index it (`201` ready, or `202` processing with progress) | MVP |
+| `POST` | `/api/documents/samples` | Add a sample document: a copy of a pre-indexed template, ready at once with no embedding calls | V1 |
 | `POST` | `/api/documents/:id/ingest` | Index the next batch of a processing document; `429` with the wait at the quota | MVP |
 | `GET` | `/api/documents` | List the user's documents | MVP |
 | `GET` | `/api/documents/:id` | Document metadata and status | MVP |
