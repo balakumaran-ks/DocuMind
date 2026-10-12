@@ -91,6 +91,46 @@ describe("DocumentLibrary — list", () => {
   });
 });
 
+describe("DocumentLibrary — samples", () => {
+  const nist = /NIST Cybersecurity Framework 2\.0/;
+
+  it("offers each sample that isn't already in the library", () => {
+    setup([doc({ filename: "IRS Publication 501 (2025).pdf" })]);
+    expect(screen.getByRole("button", { name: nist })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /IRS Publication 501/ })).toBeNull();
+  });
+
+  it("offers no samples when the library is full", () => {
+    setup(Array.from({ length: LIMITS.maxDocumentsPerUser }, (_, i) => doc({ id: `6ac68534ae92936b3b5a05${10 + i}`, filename: `d${i}.pdf` })));
+    expect(screen.queryByRole("button", { name: nist })).toBeNull();
+  });
+
+  it("adds a sample: posts its key, then lists it as ready", async () => {
+    const added = doc({ id: "6ac68534ae92936b3b5a0599", filename: "NIST Cybersecurity Framework 2.0.pdf", pageCount: 32 });
+    fetchMock.mockResolvedValue(json(201, { document: added }));
+    const { user } = setup([]);
+
+    await user.click(screen.getByRole("button", { name: nist }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/documents/samples",
+      expect.objectContaining({ method: "POST", body: JSON.stringify({ sample: "nist-csf" }) }),
+    );
+    const link = await screen.findByRole("link", { name: "NIST Cybersecurity Framework 2.0.pdf" });
+    expect(link.getAttribute("href")).toBe("/documents/6ac68534ae92936b3b5a0599");
+    expect(screen.queryByRole("button", { name: nist })).toBeNull();
+  });
+
+  it("shows the server's message when a sample can't be added", async () => {
+    fetchMock.mockResolvedValue(apiError(429, "daily_upload_limit_reached", "You've reached the daily limit of 10 uploads."));
+    const { user } = setup([]);
+
+    await user.click(screen.getByRole("button", { name: nist }));
+
+    expect((await screen.findByRole("alert")).textContent).toMatch(/daily limit of 10 uploads/);
+  });
+});
+
 describe("DocumentLibrary — upload", () => {
   it("uploads the chosen PDF, shows progress, then shows the refreshed list", async () => {
     let finishUpload: (response: Response) => void = () => {};
