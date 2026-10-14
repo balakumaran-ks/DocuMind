@@ -25,27 +25,27 @@
     "samples": "node --env-file=.env.local --import ./scripts/register-alias.mjs scripts/index-samples.ts"
   },
   "dependencies": {
-    "@ai-sdk/google": "^4.0.90",
-    "ai": "^7.0.130",
+    "@ai-sdk/google": "^4.0.93",
+    "ai": "^7.0.137",
     "mongodb": "^7.7.0",
-    "next": "16.3.7",
+    "next": "16.4.0",
     "next-auth": "5.0.0-beta.32",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "unpdf": "^1.8.1",
-    "zod": "^4.6.5"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
-    "@types/node": "^24.19.0",
+    "@types/node": "^24.19.2",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitest/coverage-v8": "^5.0.3",
     "eslint": "^9",
-    "eslint-config-next": "16.3.7",
+    "eslint-config-next": "16.4.0",
     "jsdom": "^30.1.2",
     "mongodb-memory-server": "^11.3.0",
     "tailwindcss": "^4",
